@@ -10,8 +10,8 @@ const Portfolio = () => {
     github: "https://github.com/NoamTeshuva",
     linkedin: "www.linkedin.com/in/noam-teshuva-452101221",
     email: "Teshuva91@gmail.com",
-    resume: "/resume.pdf" // Public folder path to your resume
-  };
+    resume: "/NoamTeshuvaResume.pdf"
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,21 +106,32 @@ const Portfolio = () => {
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="py-20">
-        <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Contact</h2>
-          <div className="flex items-center justify-center space-x-6">
-            <a
-              href={`mailto:${personalInfo.email}`}
-              className="flex items-center text-gray-600 hover:text-gray-900"
-            >
-              <Mail className="mr-2" size={20} />
-              {personalInfo.email}
-            </a>
-          </div>
-        </div>
-      </section>
+{/* Contact Section */}
+<section id="contact" className="py-20">
+  <div className="max-w-5xl mx-auto px-4">
+    <h2 className="text-3xl font-bold text-gray-900 mb-8">Contact</h2>
+    <div className="flex flex-col items-center space-y-6">
+      {/* Email */}
+      <a 
+        href={`mailto:${personalInfo.email}`}
+        className="flex items-center text-gray-600 hover:text-gray-900"
+      >
+        <Mail className="mr-2" size={20} />
+        {personalInfo.email}
+      </a>
+
+      {/* Phone */}
+      <a 
+        href="tel:+972542433401"
+        className="flex items-center text-gray-600 hover:text-gray-900"
+      >
+        <ExternalLink className="mr-2" size={20} />
+        054-2433401
+      </a>
+    </div>
+  </div>
+</section>
+
 
       {/* Footer */}
       <footer className="bg-white py-8">
