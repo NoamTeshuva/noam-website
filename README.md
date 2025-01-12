@@ -58,6 +58,12 @@ I have integrated **basic analytics** to track visitor metrics on my website. Th
 
 ---
 
+## 📊 Basic Analytics Integration
+
+The website uses **Google Analytics** to track visitor metrics and improve user experience. Analytics help me understand where visitors are coming from and how they interact with the site, providing valuable insights to optimize performance.
+
+---
+
 ## ✅ Accessibility
 
 I have ensured the website is accessible to everyone, including people with disabilities, by following accessibility best practices:
