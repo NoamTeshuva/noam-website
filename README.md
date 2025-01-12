@@ -26,7 +26,7 @@ This website serves as my **online resume and portfolio**. It includes links to 
 
 ## 📁 Project Structure
 
-```plaintext
+
 noam-website/
 ├── public/
 │   ├── favicon.ico         # Favicon for the website
