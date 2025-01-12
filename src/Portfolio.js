@@ -50,14 +50,19 @@ const Portfolio = () => {
 <div className="bg-white">
   <div className="max-w-5xl mx-auto px-4 py-20">
     <div className="text-center">
-      {/* Profile Photo */}
-      <div className="relative w-40 h-40 mx-auto mb-8">
-  <img
-    src="/profile-photo.png"
-    alt="Profile photo of Noam Teshuva"
-    className="rounded-full w-full h-full object-cover shadow-lg"
-  />
+{/* Profile Photo */}
+<div className="relative w-40 h-40 mx-auto mb-8">
+  <picture>
+    <source srcSet="/profile-photo.avif" type="image/avif" />
+    <source srcSet="/profile-photo.png" type="image/png" />
+    <img
+      src="/profile-photo.png"
+      alt="Profile photo of Noam Teshuva"
+      className="rounded-full w-full h-full object-cover shadow-lg"
+    />
+  </picture>
 </div>
+
 
 
       {/* Name and Title */}

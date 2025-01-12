@@ -79,6 +79,23 @@ Here are some planned improvements for the website:
 
 ---
 
+## 🖼️ Optimized Profile Photo
+
+The profile photo on my website is optimized using the **AVIF** format for faster loading and better performance, with a fallback to **PNG** for older browsers. The **`<picture>`** element is used to serve the most efficient image format supported by the visitor's browser.
+
+---
+
+## 🚨 404 Page
+
+I have implemented a **custom 404 page** to handle non-existing URLs on my website. The page is styled using **Tailwind CSS** and ensures users are redirected back to the homepage if they encounter a broken link.
+
+The **404.html** file is located in the **public/** folder, and GitHub Pages automatically serves it when a non-existing route is visited.
+
+👉 **Example:** [https://noamteshuva.com/non-existing-page](https://noamteshuva.com/non-existing-page)
+
+
+---
+
 ## 🎉 Visit My Website
 
 👉 **[https://noamteshuva.com](https://noamteshuva.com)**
