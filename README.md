@@ -1,70 +1,102 @@
-# Getting Started with Create React App
+# 🖥️ Noam Teshuva - Personal Portfolio Website
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Welcome to my **Personal Portfolio Website**! 🎉 This project showcases my skills, projects, and contact information. The website is fully responsive, accessible, and deployed on a custom domain.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 Project Overview
 
-### `npm start`
+This website serves as my **online resume and portfolio**. It includes links to my **GitHub** and **LinkedIn** profiles, highlights my projects, and provides a way to get in touch with me.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### ✨ Features:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- 📱 **Responsive Design:** Works perfectly on phones, tablets, and desktops.
+- 🔒 **HTTPS Secure:** Enforced HTTPS for secure browsing.
+- 🌐 **Custom Domain:** Available at **[https://noamteshuva.com](https://noamteshuva.com)**.
+- 🖼️ **Favicon, Title, and Meta Tags:** SEO-friendly and branded.
+- ⚙️ **Automatic Deployment:** Automatically deployed via **GitHub Pages** after every commit.
+- 📊 **Basic Analytics:** Integrated analytics to track visitors.
+- ✅ **Accessibility:** Fully accessible with:
+  - Alternative text for images.
+  - Proper color contrast for readability.
+  - Support for keyboard navigation.
+- 🧪 **Checked with Google Lighthouse:** Ensured the website is optimized for performance, accessibility, best practices, and SEO.
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 📁 Project Structure
 
-### `npm run build`
+```plaintext
+noam-website/
+├── public/
+│   ├── favicon.ico         # Favicon for the website
+│   ├── index.html          # Main HTML file
+│   └── profile-photo.jpg   # Profile image
+├── src/
+│   ├── App.js              # Main React component
+│   ├── Portfolio.js        # Portfolio page content
+│   └── index.css           # CSS for the website
+├── package.json            # Project dependencies and scripts
+└── README.md               # Project README file (this file)
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 💡 Technologies Used
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **React.js** – A JavaScript framework for building the UI of the website.
+- **Tailwind CSS** – Utility-first CSS framework for responsive and modern styling.
+- **GitHub Pages** – Used for hosting and automatic deployment of the website.
+- **Google Lighthouse** – Used to check the website’s performance, accessibility, best practices, and SEO.
+- **GoDaddy** – Domain provider for the custom domain name **noamteshuva.com**.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## 📞 Contact Me
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Feel free to reach out to me via:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- 📧 **Email:** [Teshuva91@gmail.com](mailto:Teshuva91@gmail.com)
+- 💼 **LinkedIn:** [Noam Teshuva](https://www.linkedin.com/in/noam-teshuva-452101221)
+- 💻 **GitHub:** [NoamTeshuva](https://github.com/NoamTeshuva)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## 📦 How to Run the Project Locally
 
-## Learn More
+Follow these steps to run the project on your local machine:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. **Clone the repository**:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+   ```bash
+   git clone https://github.com/NoamTeshuva/noam-website.git
+## 📊 Basic Analytics
 
-### Code Splitting
+I have integrated **basic analytics** to track visitor metrics on my website. This helps me understand where visitors are coming from and how they interact with the site.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+---
 
-### Analyzing the Bundle Size
+## ✅ Accessibility
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+I have ensured the website is accessible to everyone, including people with disabilities, by following accessibility best practices:
 
-### Making a Progressive Web App
+- Added **alternative text** for all images.
+- Ensured **proper color contrast** between background and text.
+- Added support for **keyboard-only navigation**.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+---
 
-### Advanced Configuration
+## 🔧 Future Improvements
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Here are some planned improvements for the website:
 
-### Deployment
+- Add more projects to showcase my work.
+- Implement a **contact form** using a service like **Formspree**.
+- Continue improving **SEO** to increase visibility.
+- Further optimize **image sizes** and **loading times** for better performance.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+---
 
-### `npm run build` fails to minify
+## 🎉 Visit My Website
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+👉 **[https://noamteshuva.com](https://noamteshuva.com)**
+
+Thank you for visiting my portfolio website! Feel free to reach out if you have any feedback or collaboration ideas. 😊

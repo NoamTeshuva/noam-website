@@ -52,48 +52,55 @@ const Portfolio = () => {
     <div className="text-center">
       {/* Profile Photo */}
       <div className="relative w-40 h-40 mx-auto mb-8">
-        <img
-          src="/profile-photo.png"
-          className="rounded-full w-full h-full object-cover shadow-lg"
-        />
-      </div>
+  <img
+    src="/profile-photo.png"
+    alt="Profile photo of Noam Teshuva"
+    className="rounded-full w-full h-full object-cover shadow-lg"
+  />
+</div>
+
 
       {/* Name and Title */}
       <h1 className="text-4xl font-bold text-gray-900 mb-4">{personalInfo.name}</h1>
       <p className="text-xl text-gray-600 mb-8">{personalInfo.title}</p>
 
       {/* Social Buttons */}
-      <div className="flex justify-center space-x-4">
-        {/* GitHub Button */}
-        <a
-          href={personalInfo.github}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 text-gray-600 hover:text-gray-900"
-        >
-          <Github size={24} />
-        </a>
+{/* Social Buttons */}
+<div className="flex justify-center space-x-4">
+  {/* GitHub Button */}
+  <a
+    href={personalInfo.github}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="p-2 text-gray-600 hover:text-gray-900"
+    aria-label="GitHub Profile"
+  >
+    <Github size={24} />
+  </a>
 
-        {/* LinkedIn Button */}
-        <a
-          href={personalInfo.linkedin}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 text-gray-600 hover:text-gray-900"
-        >
-          <Linkedin size={24} />
-        </a>
+  {/* LinkedIn Button */}
+  <a
+    href={personalInfo.linkedin}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="p-2 text-gray-600 hover:text-gray-900"
+    aria-label="LinkedIn Profile"
+  >
+    <Linkedin size={24} />
+  </a>
 
-        {/* Gmail Button */}
-        <a
-          href={`mailto:${personalInfo.email}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 text-gray-600 hover:text-red-600"
-        >
-          <Mail size={24} />
-        </a>
-      </div>
+  {/* Gmail Button */}
+  <a
+    href={`mailto:${personalInfo.email}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="p-2 text-gray-600 hover:text-red-600"
+    aria-label="Email Noam Teshuva"
+  >
+    <Mail size={24} />
+  </a>
+</div>
+
     </div>
   </div>
 </div>
