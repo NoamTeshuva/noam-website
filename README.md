@@ -24,22 +24,6 @@ This website serves as my **online resume and portfolio**. It includes links to 
 
 ---
 
-## 📁 Project Structure
-
-
-noam-website/
-├── public/
-│   ├── favicon.ico         # Favicon for the website
-│   ├── index.html          # Main HTML file
-│   └── profile-photo.jpg   # Profile image
-├── src/
-│   ├── App.js              # Main React component
-│   ├── Portfolio.js        # Portfolio page content
-│   └── index.css           # CSS for the website
-├── package.json            # Project dependencies and scripts
-└── README.md               # Project README file (this file)
----
-
 ## 💡 Technologies Used
 
 - **React.js** – A JavaScript framework for building the UI of the website.
