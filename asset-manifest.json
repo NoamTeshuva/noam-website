@@ -1,10 +1,13 @@
 {
   "files": {
-    "main.js": "/noam-website/static/js/main.75dcacab.js",
-    "index.html": "/noam-website/index.html",
-    "main.75dcacab.js.map": "/noam-website/static/js/main.75dcacab.js.map"
+    "main.css": "/static/css/main.d1218f58.css",
+    "main.js": "/static/js/main.646b9424.js",
+    "index.html": "/index.html",
+    "main.d1218f58.css.map": "/static/css/main.d1218f58.css.map",
+    "main.646b9424.js.map": "/static/js/main.646b9424.js.map"
   },
   "entrypoints": [
-    "static/js/main.75dcacab.js"
+    "static/css/main.d1218f58.css",
+    "static/js/main.646b9424.js"
   ]
 }
