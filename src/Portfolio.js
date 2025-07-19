@@ -158,27 +158,18 @@ const Portfolio = () => {
             <Github className="mr-1" size={16} />
             View Code
           </a>
-          <a
-            href="https://noamteshuva.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 flex items-center"
-          >
-            <ExternalLink className="mr-1" size={16} />
-            Live Demo
-          </a>
         </div>
       </div>
 
-      {/* Operating Systems Project */}
+      {/* ML Final Project */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-xl font-semibold mb-2">Operating Systems Course Project</h3>
+        <h3 className="text-xl font-semibold mb-2">ML_Final_Project</h3>
         <p className="text-gray-600 mb-4">
-          Designed a multi-client server in C using the Miller-Rabin primality test to identify prime numbers. Implemented advanced OS concepts, including polling, proactor patterns, and producer-consumer models for efficient handling of client requests. Focused on multi-threading, process synchronization, and shared memory to optimize server responsiveness and performance.
+          Comprehensive machine learning project focused on advanced model development, feature engineering, and performance evaluation. Includes data preprocessing, model selection, and in-depth analysis using Python and popular ML libraries. See the repository for full details and code.
         </p>
         <div className="flex items-center space-x-4">
           <a
-            href="https://github.com/NoamTeshuva/os_final_project"
+            href="https://github.com/NoamTeshuva/ML_Final_Project"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800 flex items-center"
@@ -186,14 +177,24 @@ const Portfolio = () => {
             <Github className="mr-1" size={16} />
             View Code
           </a>
+        </div>
+      </div>
+
+      {/* Pedestrian Volume Prediction Project */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-xl font-semibold mb-2">ML-Models-for-Pedestrian-Volume-Prediction</h3>
+        <p className="text-gray-600 mb-4">
+          Developed and compared multiple machine learning models to predict pedestrian volume based on real-world data. The project covers data analysis, feature extraction, model training, and evaluation. All code and results are available in the repository.
+        </p>
+        <div className="flex items-center space-x-4">
           <a
-            href="https://noamteshuva.com"
+            href="https://github.com/NoamTeshuva/ML-Models-for-Pedestrian-Volume-Prediction"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800 flex items-center"
           >
-            <ExternalLink className="mr-1" size={16} />
-            Live Demo
+            <Github className="mr-1" size={16} />
+            View Code
           </a>
         </div>
       </div>
