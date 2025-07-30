@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(rm:*)",
+      "Bash(npm install)",
+      "Bash(timeout 10 npm start)",
+      "Bash(taskkill:*)",
+      "Bash(timeout 15 npm start)",
+      "Bash(start /B npm start)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(npm start)",
+      "Bash(npm ls:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(find:*)",
+      "Bash(timeout 30 npm start)",
+      "Bash(/dev/null)",
+      "Bash(pkill:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

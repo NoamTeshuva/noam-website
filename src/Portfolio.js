@@ -33,6 +33,7 @@ const Portfolio = () => {
         <a href="#about" className="text-gray-600 hover:text-gray-900">About</a>
         <a href="#projects" className="text-gray-600 hover:text-gray-900">Projects</a>
         <a href="#contact" className="text-gray-600 hover:text-gray-900">Contact</a>
+        <a href="/bloomberg" className="text-bloombergAccent hover:text-orange-600 font-semibold">Bloomberg Terminal</a>
         <a href="/NoamTeshuvaResume.pdf" 
            target="_blank" 
            rel="noopener noreferrer" 
@@ -117,19 +118,19 @@ const Portfolio = () => {
     <h2 className="text-3xl font-bold text-gray-900 mb-8">About Me</h2>
     <div className="space-y-4">
       <p className="text-lg text-gray-600 leading-relaxed">
-        I'm a passionate and detail-oriented Computer Science and Mathematics graduate with a solid foundation in software development, cloud platforms, and automation tools. I strive to build efficient, scalable systems and solve complex problems.
+        Curious, independent thinker with a strong technical foundation (B.Sc. in Computer Science & Math) and hands-on research experience in tech, OSINT, and AI.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        🔧 <strong>Programming Languages:</strong> Python, Java, C, JavaScript.
+        <strong>Current Research:</strong> Research Assistant at Ariel University's Civil Engineering Department, developing ML pipelines for pedestrian volume prediction using geospatial, temporal, and environmental data with CatBoost classifiers.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        📊 <strong>Data & Machine Learning:</strong> Experienced in data analysis, building deep learning models, binary classification, and utilizing frameworks like PyTorch.
+        <strong>Technical Skills:</strong> Python (Pandas, NumPy, Scikit-learn, Matplotlib), SQL, MongoDB, GeoPandas, OSMnx, spatial data processing, and modern AI tools (Claude, GPT, Cursor).
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        🌐 <strong>Cloud & DevOps Tools:</strong> Familiar with AWS, Docker, and Git, with experience deploying scalable solutions in cloud environments.
+        <strong>Military Experience:</strong> Intelligence Analyst in the IDF Intelligence Corps (2017-2019), with current reserve duty (2023-2025) as Intelligence Officer specializing in OSINT, big data analysis, and GIS/Python workflows.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        🖥️ <strong>Frontend & Backend Development:</strong> Proficient in React.js for frontend development and experienced in backend development using server-side programming, building end-to-end systems, and delivering impactful data insights.
+        <strong>Impact-Driven Work:</strong> Co-developed web tools for urban design research, integrated multi-source GIS datasets, and delivered actionable intelligence under tight deadlines. Looking to join teams that think ahead of the curve and value clarity, sharp questions, and real tech understanding.
       </p>
     </div>
   </div>
