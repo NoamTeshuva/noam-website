@@ -18,37 +18,71 @@ export const useSmartPolling = (symbols) => {
   const [error, setError] = useState(null);
   const intervalsRef = useRef({});
 
-  // Fetch real-time quote from Finnhub (free tier: 60 calls/minute)
-  const fetchFinnhubQuote = async (symbol) => {
+  // Try multiple APIs for real stock data
+  const fetchRealQuoteData = async (symbol) => {
+    // Try Finnhub first if we have a real API key
+    if (FINNHUB_KEY && FINNHUB_KEY !== 'demo') {
+      try {
+        const response = await fetch(
+          `${FINNHUB_BASE}/quote?symbol=${symbol}&token=${FINNHUB_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data.c) {
+          return {
+            symbol,
+            price: data.c,
+            change: data.d,
+            changePercent: data.dp,
+            high: data.h,
+            low: data.l,
+            open: data.o,
+            previousClose: data.pc,
+            timestamp: Date.now(),
+            isRealData: true,
+            source: 'Finnhub'
+          };
+        }
+      } catch (error) {
+        console.warn(`Finnhub failed for ${symbol}, trying alternatives...`);
+      }
+    }
+
+    // Try Yahoo Finance as fallback (free, no API key needed)
     try {
-      const response = await fetch(
-        `${FINNHUB_BASE}/quote?symbol=${symbol}&token=${FINNHUB_KEY}`
-      );
+      const proxyUrl = 'https://api.allorigins.win/raw?url=';
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+      const response = await fetch(proxyUrl + encodeURIComponent(yahooUrl));
       const data = await response.json();
       
-      if (data.error || !data.c) {
-        console.warn(`Finnhub API error for ${symbol}:`, data.error || 'No price data');
-        // Return mock data when API fails
-        return generateMockQuoteData(symbol);
+      if (data?.chart?.result?.[0]?.meta) {
+        const meta = data.chart.result[0].meta;
+        const quote = data.chart.result[0].indicators?.quote?.[0];
+        const currentPrice = meta.regularMarketPrice || meta.previousClose;
+        const previousClose = meta.previousClose || meta.chartPreviousClose;
+        const change = currentPrice - previousClose;
+        const changePercent = (change / previousClose) * 100;
+
+        return {
+          symbol,
+          price: parseFloat(currentPrice.toFixed(2)),
+          change: parseFloat(change.toFixed(2)),
+          changePercent: parseFloat(changePercent.toFixed(2)),
+          high: meta.regularMarketDayHigh || currentPrice * 1.02,
+          low: meta.regularMarketDayLow || currentPrice * 0.98,
+          open: meta.regularMarketOpen || previousClose,
+          previousClose: previousClose,
+          timestamp: Date.now(),
+          isRealData: true,
+          source: 'Yahoo Finance'
+        };
       }
-      
-      return {
-        symbol,
-        price: data.c,           // Current price
-        change: data.d,          // Change
-        changePercent: data.dp,  // Change percent
-        high: data.h,           // High price of the day
-        low: data.l,            // Low price of the day
-        open: data.o,           // Open price of the day
-        previousClose: data.pc,  // Previous close price
-        timestamp: Date.now(),
-        isRealData: true
-      };
     } catch (error) {
-      console.error(`Finnhub error for ${symbol}:`, error);
-      // Return mock data on fetch failure
-      return generateMockQuoteData(symbol);
+      console.warn(`Yahoo Finance failed for ${symbol}, using mock data...`);
     }
+
+    // Fallback to mock data if all APIs fail
+    return generateMockQuoteData(symbol);
   };
 
   // Generate realistic mock data when API fails (Updated with current approximate prices)
@@ -181,8 +215,8 @@ export const useSmartPolling = (symbols) => {
       // Get existing data
       const existing = stockData[symbol] || {};
       
-      // Always fetch real-time quote (fast, high limit)
-      const quote = await fetchFinnhubQuote(symbol);
+      // Always fetch real-time quote from multiple sources
+      const quote = await fetchRealQuoteData(symbol);
       
       // Fetch profile if we don't have it (once per symbol)
       let profile = existing.name ? existing : {};
@@ -223,10 +257,11 @@ export const useSmartPolling = (symbols) => {
         hasProfileData: !!profile?.name,
         hasFundamentalsData: !!fundamentals?.pe,
         
-        // Add mock data indicators
+        // Add data source indicators
         isMockData: quote?.isMockData || profile?.isMockData || false,
-        isRealData: quote?.isRealData && profile?.isRealData,
-        dataSource: quote?.isMockData ? 'Mock Data (API Unavailable)' : 'Live Data'
+        isRealData: quote?.isRealData,
+        dataSource: quote?.isMockData ? 'Mock Data (API Unavailable)' : 
+                   quote?.source ? `Live Data (${quote.source})` : 'Live Data'
       };
 
       // Data successfully updated for symbol
