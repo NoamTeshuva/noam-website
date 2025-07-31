@@ -30,7 +30,11 @@ export const useSmartPolling = (symbols) => {
       );
       const data = await response.json();
       
-      if (data.error) throw new Error(data.error);
+      if (data.error || !data.c) {
+        console.warn(`Finnhub API error for ${symbol}:`, data.error || 'No price data');
+        // Return mock data when API fails
+        return generateMockQuoteData(symbol);
+      }
       
       return {
         symbol,
@@ -41,12 +45,47 @@ export const useSmartPolling = (symbols) => {
         low: data.l,            // Low price of the day
         open: data.o,           // Open price of the day
         previousClose: data.pc,  // Previous close price
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        isRealData: true
       };
     } catch (error) {
       console.error(`Finnhub error for ${symbol}:`, error);
-      return null;
+      // Return mock data on fetch failure
+      return generateMockQuoteData(symbol);
     }
+  };
+
+  // Generate realistic mock data when API fails
+  const generateMockQuoteData = (symbol) => {
+    const mockPrices = {
+      'AAPL': { base: 185.25, volatility: 0.02 },
+      'MSFT': { base: 378.85, volatility: 0.015 },
+      'GOOGL': { base: 142.75, volatility: 0.025 },
+      'TSLA': { base: 208.45, volatility: 0.04 },
+      'NVDA': { base: 118.75, volatility: 0.035 },
+      'META': { base: 486.35, volatility: 0.025 },
+      'AMZN': { base: 145.30, volatility: 0.02 },
+      'NFLX': { base: 425.15, volatility: 0.03 }
+    };
+
+    const mockData = mockPrices[symbol] || { base: 100, volatility: 0.02 };
+    const randomChange = (Math.random() - 0.5) * mockData.volatility * mockData.base;
+    const currentPrice = mockData.base + randomChange;
+    const changePercent = (randomChange / mockData.base) * 100;
+
+    return {
+      symbol,
+      price: parseFloat(currentPrice.toFixed(2)),
+      change: parseFloat(randomChange.toFixed(2)),
+      changePercent: parseFloat(changePercent.toFixed(2)),
+      high: parseFloat((currentPrice * 1.02).toFixed(2)),
+      low: parseFloat((currentPrice * 0.98).toFixed(2)),
+      open: parseFloat((mockData.base).toFixed(2)),
+      previousClose: parseFloat((mockData.base - randomChange).toFixed(2)),
+      timestamp: Date.now(),
+      isRealData: false,
+      isMockData: true
+    };
   };
 
   // Fetch company profile from Finnhub
@@ -57,6 +96,11 @@ export const useSmartPolling = (symbols) => {
       );
       const data = await response.json();
       
+      if (data.error || !data.name) {
+        console.warn(`Finnhub profile API error for ${symbol}:`, data.error || 'No profile data');
+        return generateMockProfileData(symbol);
+      }
+      
       return {
         name: data.name,
         industry: data.finnhubIndustry,
@@ -66,12 +110,43 @@ export const useSmartPolling = (symbols) => {
         currency: data.currency,
         exchange: data.exchange,
         weburl: data.weburl,
-        logo: data.logo
+        logo: data.logo,
+        isRealData: true
       };
     } catch (error) {
       console.error(`Finnhub profile error for ${symbol}:`, error);
-      return {};
+      return generateMockProfileData(symbol);
     }
+  };
+
+  // Generate mock profile data when API fails
+  const generateMockProfileData = (symbol) => {
+    const mockProfiles = {
+      'AAPL': { name: 'Apple Inc.', industry: 'Technology', exchange: 'NASDAQ' },
+      'MSFT': { name: 'Microsoft Corporation', industry: 'Technology', exchange: 'NASDAQ' },
+      'GOOGL': { name: 'Alphabet Inc.', industry: 'Technology', exchange: 'NASDAQ' },
+      'TSLA': { name: 'Tesla Inc.', industry: 'Automotive', exchange: 'NASDAQ' },
+      'NVDA': { name: 'NVIDIA Corporation', industry: 'Technology', exchange: 'NASDAQ' },
+      'META': { name: 'Meta Platforms Inc.', industry: 'Technology', exchange: 'NASDAQ' },
+      'AMZN': { name: 'Amazon.com Inc.', industry: 'E-commerce', exchange: 'NASDAQ' },
+      'NFLX': { name: 'Netflix Inc.', industry: 'Entertainment', exchange: 'NASDAQ' }
+    };
+
+    const profile = mockProfiles[symbol] || { name: `${symbol} Inc.`, industry: 'Unknown', exchange: 'NYSE' };
+    
+    return {
+      name: profile.name,
+      industry: profile.industry,
+      marketCap: Math.random() * 2000000 + 100000, // Random market cap
+      shareOutstanding: Math.random() * 10000 + 1000,
+      country: 'United States',
+      currency: 'USD',
+      exchange: profile.exchange,
+      weburl: `https://example.com/${symbol.toLowerCase()}`,
+      logo: '',
+      isRealData: false,
+      isMockData: true
+    };
   };
 
   // Fetch fundamentals from Alpha Vantage (used sparingly due to 25/day limit)
@@ -154,7 +229,12 @@ export const useSmartPolling = (symbols) => {
         isLoading: false,
         hasQuoteData: !!quote,
         hasProfileData: !!profile?.name,
-        hasFundamentalsData: !!fundamentals?.pe
+        hasFundamentalsData: !!fundamentals?.pe,
+        
+        // Add mock data indicators
+        isMockData: quote?.isMockData || profile?.isMockData || false,
+        isRealData: quote?.isRealData && profile?.isRealData,
+        dataSource: quote?.isMockData ? 'Mock Data (API Unavailable)' : 'Live Data'
       };
 
       console.log(`✅ Combined data for ${symbol}:`, combinedData);
