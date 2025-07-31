@@ -19,7 +19,10 @@
       "Bash(/dev/null)",
       "Bash(pkill:*)",
       "Bash(npx kill-port:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
