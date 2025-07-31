@@ -8,12 +8,8 @@ const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
 const FINNHUB_KEY = process.env.REACT_APP_FINNHUB_KEY || 'demo'; // Finnhub demo key works for testing
 const ALPHA_VANTAGE_KEY = process.env.REACT_APP_ALPHA_VANTAGE_KEY || 'demo';
 
-// Debug environment variables
-console.log('🔑 API Keys loaded:', {
-  finnhub: FINNHUB_KEY ? `${FINNHUB_KEY.slice(0, 8)}...` : 'NOT SET',
-  alphaVantage: ALPHA_VANTAGE_KEY ? `${ALPHA_VANTAGE_KEY.slice(0, 8)}...` : 'NOT SET',
-  isDemo: FINNHUB_KEY === 'demo'
-});
+// Environment variables configured
+// Set REACT_APP_FINNHUB_KEY and REACT_APP_ALPHA_VANTAGE_KEY in .env for live data
 
 export const useSmartPolling = (symbols) => {
   const [stockData, setStockData] = useState({});
@@ -55,17 +51,17 @@ export const useSmartPolling = (symbols) => {
     }
   };
 
-  // Generate realistic mock data when API fails
+  // Generate realistic mock data when API fails (Updated with current approximate prices)
   const generateMockQuoteData = (symbol) => {
     const mockPrices = {
-      'AAPL': { base: 185.25, volatility: 0.02 },
-      'MSFT': { base: 378.85, volatility: 0.015 },
-      'GOOGL': { base: 142.75, volatility: 0.025 },
-      'TSLA': { base: 208.45, volatility: 0.04 },
-      'NVDA': { base: 118.75, volatility: 0.035 },
-      'META': { base: 486.35, volatility: 0.025 },
-      'AMZN': { base: 145.30, volatility: 0.02 },
-      'NFLX': { base: 425.15, volatility: 0.03 }
+      'AAPL': { base: 229.87, volatility: 0.02 },
+      'MSFT': { base: 425.65, volatility: 0.015 },
+      'GOOGL': { base: 178.32, volatility: 0.025 },
+      'TSLA': { base: 244.56, volatility: 0.04 },
+      'NVDA': { base: 133.20, volatility: 0.035 },
+      'META': { base: 562.95, volatility: 0.025 },
+      'AMZN': { base: 186.43, volatility: 0.02 },
+      'NFLX': { base: 668.25, volatility: 0.03 }
     };
 
     const mockData = mockPrices[symbol] || { base: 100, volatility: 0.02 };
@@ -181,19 +177,16 @@ export const useSmartPolling = (symbols) => {
   // Smart data fetching strategy
   const fetchStockData = async (symbol) => {
     try {
-      console.log(`📊 Fetching data for ${symbol}...`);
       
       // Get existing data
       const existing = stockData[symbol] || {};
       
       // Always fetch real-time quote (fast, high limit)
-      console.log(`🔄 Fetching quote for ${symbol}...`);
       const quote = await fetchFinnhubQuote(symbol);
       
       // Fetch profile if we don't have it (once per symbol)
       let profile = existing.name ? existing : {};
       if (!existing.name) {
-        console.log(`🏢 Fetching profile for ${symbol}...`);
         profile = await fetchFinnhubProfile(symbol);
       }
       
@@ -203,7 +196,6 @@ export const useSmartPolling = (symbols) => {
         (Date.now() - (existing.fundamentalsUpdated || 0)) > 24 * 60 * 60 * 1000; // 24 hours
       
       if (needsFundamentals && ALPHA_VANTAGE_KEY !== 'demo') {
-        console.log(`📈 Fetching fundamentals for ${symbol}...`);
         fundamentals = await fetchAlphaVantageOverview(symbol);
         fundamentals.fundamentalsUpdated = Date.now();
       }
@@ -237,7 +229,7 @@ export const useSmartPolling = (symbols) => {
         dataSource: quote?.isMockData ? 'Mock Data (API Unavailable)' : 'Live Data'
       };
 
-      console.log(`✅ Combined data for ${symbol}:`, combinedData);
+      // Data successfully updated for symbol
 
       setStockData(prev => ({
         ...prev,
@@ -271,7 +263,7 @@ export const useSmartPolling = (symbols) => {
   useEffect(() => {
     if (!symbols || symbols.length === 0) return;
 
-    console.log('🔄 Setting up polling for symbols:', symbols);
+    // Setting up polling for symbols
     setIsLoading(true);
 
     // Clear existing intervals

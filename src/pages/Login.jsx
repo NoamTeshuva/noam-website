@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  console.log("🔑 Login rendered");
-  
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
@@ -14,30 +12,19 @@ export default function Login() {
 
     const normalizedUser = user.trim().toLowerCase();
     const trimmedPass = pass.trim();
-    console.log('🔍 Normalized user:', `"${normalizedUser}"`);
-    console.log('🔍 Trimmed pass:', `"${trimmedPass}"`);
-    console.log('✔️ user match?', normalizedUser === 'racquel');
-    console.log('✔️ pass match?', trimmedPass === 'Racquel@2025');
 
     if (normalizedUser === 'racquel' && trimmedPass === 'Racquel@2025') {
-      console.log('✅ Credentials valid, setting auth and redirecting…');
       sessionStorage.setItem('isAuth', 'true');
-      console.log('✅ Auth set:', sessionStorage.getItem('isAuth'));
       setError('');
-      
-      // Use navigate instead of window.location for React Router
-      console.log('🚀 Navigating to /bloomberg...');
       navigate('/bloomberg', { replace: true });
       
       // Fallback: Force reload if navigate doesn't work
       setTimeout(() => {
         if (window.location.pathname !== '/bloomberg') {
-          console.log('🔄 Fallback: Force reloading page...');
           window.location.reload();
         }
       }, 500);
     } else {
-      console.log('❌ Invalid credentials');
       setError('Invalid username or password');
     }
   };
@@ -71,10 +58,7 @@ export default function Login() {
                          transition-colors duration-200"
                 placeholder="Enter username"
                 value={user}
-                onChange={e => {
-                  console.log('Typing:', e.target.name, e.target.value);
-                  setUser(e.target.value);
-                }}
+                onChange={e => setUser(e.target.value)}
               />
             </div>
             
@@ -93,10 +77,7 @@ export default function Login() {
                          transition-colors duration-200"
                 placeholder="Enter password"
                 value={pass}
-                onChange={e => {
-                  console.log('Typing:', e.target.name, e.target.value);
-                  setPass(e.target.value);
-                }}
+                onChange={e => setPass(e.target.value)}
               />
             </div>
             
@@ -118,32 +99,6 @@ export default function Login() {
               </div>
             )}
           </form>
-          
-          <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
-            <div className="text-center">
-              <p className="text-bloomberg-text-muted text-terminal-xs">
-                Demo Credentials
-              </p>
-              <p className="text-bloomberg-text-secondary text-terminal-sm font-bloomberg-mono mt-1">
-                racquel / Racquel@2025
-              </p>
-              
-              {/* Debug button for testing */}
-              <button 
-                onClick={() => {
-                  console.log('🧪 Debug: Setting auth manually');
-                  sessionStorage.setItem('isAuth', 'true');
-                  console.log('🧪 Debug: Auth set, navigating...');
-                  navigate('/bloomberg');
-                }}
-                className="mt-3 px-3 py-1 bg-bloomberg-secondary border border-bloomberg-border 
-                         text-bloomberg-text-muted text-terminal-xs rounded-terminal
-                         hover:bg-bloomberg-button hover:text-bloomberg-text-primary transition-colors"
-              >
-                Debug: Skip Login
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
