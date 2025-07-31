@@ -18,67 +18,77 @@ export const useSmartPolling = (symbols) => {
   const [error, setError] = useState(null);
   const intervalsRef = useRef({});
 
-  // Try multiple APIs for real stock data
+  // Try multiple APIs for real stock data - Yahoo Finance prioritized
   const fetchRealQuoteData = async (symbol) => {
-    // Try Finnhub first if we have a real API key
-    if (FINNHUB_KEY && FINNHUB_KEY !== 'demo') {
-      try {
-        const response = await fetch(
-          `${FINNHUB_BASE}/quote?symbol=${symbol}&token=${FINNHUB_KEY}`
-        );
+
+    // Try Yahoo Finance API (free, no API key needed)
+    try {
+      // Use Yahoo Finance directly - it supports CORS
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`;
+      const response = await fetch(yahooUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      if (response.ok) {
         const data = await response.json();
         
-        if (data.c) {
+        if (data?.chart?.result?.[0]?.meta) {
+          const meta = data.chart.result[0].meta;
+          const currentPrice = meta.regularMarketPrice || meta.previousClose;
+          const previousClose = meta.previousClose || meta.chartPreviousClose;
+          const change = currentPrice - previousClose;
+          const changePercent = (change / previousClose) * 100;
+
           return {
             symbol,
-            price: data.c,
-            change: data.d,
-            changePercent: data.dp,
-            high: data.h,
-            low: data.l,
-            open: data.o,
-            previousClose: data.pc,
+            price: parseFloat(currentPrice.toFixed(2)),
+            change: parseFloat(change.toFixed(2)),
+            changePercent: parseFloat(changePercent.toFixed(2)),
+            high: meta.regularMarketDayHigh || currentPrice * 1.02,
+            low: meta.regularMarketDayLow || currentPrice * 0.98,
+            open: meta.regularMarketOpen || previousClose,
+            previousClose: previousClose,
             timestamp: Date.now(),
             isRealData: true,
-            source: 'Finnhub'
+            source: 'Yahoo Finance'
           };
         }
-      } catch (error) {
-        console.warn(`Finnhub failed for ${symbol}, trying alternatives...`);
       }
+    } catch (error) {
+      console.warn(`Yahoo Finance direct API failed for ${symbol}`);
     }
 
-    // Try Yahoo Finance as fallback (free, no API key needed)
+    // Try AlphaVantage demo endpoint (some free data available)
     try {
-      const proxyUrl = 'https://api.allorigins.win/raw?url=';
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
-      const response = await fetch(proxyUrl + encodeURIComponent(yahooUrl));
+      const avUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=demo`;
+      const response = await fetch(avUrl);
       const data = await response.json();
       
-      if (data?.chart?.result?.[0]?.meta) {
-        const meta = data.chart.result[0].meta;
-        const quote = data.chart.result[0].indicators?.quote?.[0];
-        const currentPrice = meta.regularMarketPrice || meta.previousClose;
-        const previousClose = meta.previousClose || meta.chartPreviousClose;
-        const change = currentPrice - previousClose;
-        const changePercent = (change / previousClose) * 100;
-
+      const quote = data['Global Quote'];
+      if (quote && quote['05. price']) {
+        const currentPrice = parseFloat(quote['05. price']);
+        const change = parseFloat(quote['09. change']);
+        const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
+        
         return {
           symbol,
-          price: parseFloat(currentPrice.toFixed(2)),
-          change: parseFloat(change.toFixed(2)),
-          changePercent: parseFloat(changePercent.toFixed(2)),
-          high: meta.regularMarketDayHigh || currentPrice * 1.02,
-          low: meta.regularMarketDayLow || currentPrice * 0.98,
-          open: meta.regularMarketOpen || previousClose,
-          previousClose: previousClose,
+          price: currentPrice,
+          change: change,
+          changePercent: changePercent,
+          high: parseFloat(quote['03. high']),
+          low: parseFloat(quote['04. low']),
+          open: parseFloat(quote['02. open']),
+          previousClose: parseFloat(quote['08. previous close']),
           timestamp: Date.now(),
           isRealData: true,
-          source: 'Yahoo Finance'
+          source: 'Alpha Vantage'
         };
       }
     } catch (error) {
-      console.warn(`Yahoo Finance failed for ${symbol}, using mock data...`);
+      console.warn(`Alpha Vantage demo failed for ${symbol}, falling back to mock data...`);
     }
 
     // Fallback to mock data if all APIs fail
@@ -99,7 +109,10 @@ export const useSmartPolling = (symbols) => {
     };
 
     const mockData = mockPrices[symbol] || { base: 100, volatility: 0.02 };
-    const randomChange = (Math.random() - 0.5) * mockData.volatility * mockData.base;
+    
+    // Add time-based variation to simulate realistic market movement
+    const timeVariation = Math.sin(Date.now() / 60000) * mockData.volatility * 0.5;
+    const randomChange = (Math.random() - 0.5) * mockData.volatility * mockData.base + timeVariation;
     const currentPrice = mockData.base + randomChange;
     const changePercent = (randomChange / mockData.base) * 100;
 
@@ -114,7 +127,8 @@ export const useSmartPolling = (symbols) => {
       previousClose: parseFloat((mockData.base - randomChange).toFixed(2)),
       timestamp: Date.now(),
       isRealData: false,
-      isMockData: true
+      isMockData: true,
+      source: 'Mock Data (Realistic Simulation)'
     };
   };
 
