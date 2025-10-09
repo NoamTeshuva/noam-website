@@ -118,16 +118,13 @@ const Portfolio = () => {
     <h2 className="text-3xl font-bold text-gray-900 mb-8">About Me</h2>
     <div className="space-y-4">
       <p className="text-lg text-gray-600 leading-relaxed">
-        Curious, independent thinker with a strong technical foundation (B.Sc. in Computer Science & Math) and hands-on research experience in tech, OSINT, and AI.
+        Curious, independent thinker with a strong technical foundation (B.Sc. in Computer Science & Math) and hands-on research experience in tech and AI.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
         <strong>Current Research:</strong> Research Assistant at Ariel University's Civil Engineering Department, developing ML pipelines for pedestrian volume prediction using geospatial, temporal, and environmental data with CatBoost classifiers.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
         <strong>Technical Skills:</strong> Python (Pandas, NumPy, Scikit-learn, Matplotlib), SQL, MongoDB, GeoPandas, OSMnx, spatial data processing, and modern AI tools (Claude, GPT, Cursor).
-      </p>
-      <p className="text-lg text-gray-600 leading-relaxed">
-        <strong>Military Experience:</strong> Intelligence Analyst in the IDF Intelligence Corps (2017-2019), with current reserve duty (2023-2025) as Intelligence Officer specializing in OSINT, big data analysis, and GIS/Python workflows.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
         <strong>Impact-Driven Work:</strong> Co-developed web tools for urban design research, integrated multi-source GIS datasets, and delivered actionable intelligence under tight deadlines. Looking to join teams that think ahead of the curve and value clarity, sharp questions, and real tech understanding.
