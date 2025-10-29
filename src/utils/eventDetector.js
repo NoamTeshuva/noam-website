@@ -1,4 +1,4 @@
-import { alphaVantageAPI, finnhubAPI } from './api.js';
+import { alphaVantageAPI } from './api.js';
 
 /**
  * Calculate average daily volume over the past 2 weeks (14 days)

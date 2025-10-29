@@ -1,10 +1,6 @@
 // Twelve Data API configuration (via Cloudflare Worker proxy)
 const TWELVE_DATA_API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
 
-// Finnhub API configuration
-const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
-const FINNHUB_KEY = process.env.REACT_APP_FINNHUB_KEY;
-
 // Twelve Data API functions (via Cloudflare Worker)
 export const twelveDataAPI = {
   // Get real-time quote
@@ -82,61 +78,6 @@ export const twelveDataAPI = {
 
 // Backward compatibility - alias for existing code
 export const alphaVantageAPI = twelveDataAPI;
-
-// Finnhub API functions
-export const finnhubAPI = {
-  // Get peer/competitor companies
-  getPeers: async (symbol) => {
-    try {
-      const response = await fetch(
-        `${FINNHUB_BASE_URL}/stock/peers?symbol=${symbol}&token=${FINNHUB_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      // Return up to 5 peers, excluding the original symbol
-      return data.filter(peer => peer !== symbol).slice(0, 5);
-    } catch (error) {
-      console.error('Finnhub peers error:', error);
-      throw error;
-    }
-  },
-
-  // Get company profile
-  getProfile: async (symbol) => {
-    try {
-      const response = await fetch(
-        `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol}&token=${FINNHUB_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      return {
-        symbol: symbol,
-        name: data.name,
-        country: data.country,
-        currency: data.currency,
-        exchange: data.exchange,
-        ipo: data.ipo,
-        marketCapitalization: data.marketCapitalization,
-        shareOutstanding: data.shareOutstanding,
-        logo: data.logo,
-        phone: data.phone,
-        weburl: data.weburl,
-        industry: data.finnhubIndustry
-      };
-    } catch (error) {
-      console.error('Finnhub profile error:', error);
-      throw error;
-    }
-  }
-};
 
 // Utility functions
 export const formatMarketCap = (marketCap) => {

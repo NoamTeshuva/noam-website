@@ -1,47 +1,22 @@
-import { finnhubAPI } from './api.js';
-
 /**
  * Fetch top 5 peer stocks for a given symbol
+ * NOTE: Finnhub API removed - using predefined peer mappings only
  * @param {string} symbol - Stock symbol
  * @returns {Promise<string[]>} - Array of up to 5 peer symbols
  */
 export const getPeers = async (symbol) => {
   console.log(`🔍 Fetching peers for ${symbol}...`);
-  
-  try {
-    // First try Finnhub peers API with proper error handling
-    const peers = await finnhubAPI.getPeers(symbol);
-    
-    if (peers && peers.length > 0) {
-      const top5Peers = peers.slice(0, 5);
-      console.log(`✅ Found ${top5Peers.length} peers for ${symbol}:`, top5Peers);
-      return top5Peers;
-    }
-    
-    // Fallback: Use predefined peer mappings for common stocks
-    const fallbackPeers = getFallbackPeers(symbol);
-    if (fallbackPeers.length > 0) {
-      console.log(`📋 Using fallback peers for ${symbol}:`, fallbackPeers);
-      return fallbackPeers;
-    }
-    
-    console.log(`⚠️ No peers found for ${symbol}, using demo tickers`);
-    return ['DEMO1', 'DEMO2', 'DEMO3', 'DEMO4', 'DEMO5'];
-    
-  } catch (error) {
-    console.error(`Failed to fetch peers for ${symbol}:`, error);
-    
-    // First try predefined fallback peers
-    const fallbackPeers = getFallbackPeers(symbol);
-    if (fallbackPeers.length > 0) {
-      console.log(`🔄 Using fallback peers for ${symbol} due to error:`, fallbackPeers);
-      return fallbackPeers;
-    }
-    
-    // Final fallback: demo tickers
-    console.log(`🔄 Using demo tickers for ${symbol} due to error`);
-    return ['DEMO1', 'DEMO2', 'DEMO3', 'DEMO4', 'DEMO5'];
+
+  // Use predefined peer mappings for common stocks
+  const fallbackPeers = getFallbackPeers(symbol);
+  if (fallbackPeers.length > 0) {
+    console.log(`📋 Using fallback peers for ${symbol}:`, fallbackPeers);
+    return fallbackPeers;
   }
+
+  // Return empty array if no peers found
+  console.log(`⚠️ No peers defined for ${symbol}`);
+  return [];
 };
 
 /**

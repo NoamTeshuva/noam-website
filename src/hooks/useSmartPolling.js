@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { twelveDataAPI } from '../utils/api';
 
-// Free API endpoints
-const FINNHUB_BASE = 'https://finnhub.io/api/v1';
-
-// API keys from environment variables
-const FINNHUB_KEY = process.env.REACT_APP_FINNHUB_KEY;
-
 export const useSmartPolling = (symbols) => {
   const [stockData, setStockData] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -72,43 +66,6 @@ export const useSmartPolling = (symbols) => {
   };
 
 
-  // Fetch company profile from Finnhub
-  const fetchFinnhubProfile = async (symbol) => {
-    if (!FINNHUB_KEY || FINNHUB_KEY === 'demo') {
-      console.warn(`No Finnhub API key configured for ${symbol}`);
-      return {};
-    }
-
-    try {
-      const response = await fetch(
-        `${FINNHUB_BASE}/stock/profile2?symbol=${symbol}&token=${FINNHUB_KEY}`
-      );
-      const data = await response.json();
-
-      if (data.error || !data.name) {
-        console.warn(`Finnhub profile API error for ${symbol}:`, data.error || 'No profile data');
-        return {};
-      }
-
-      return {
-        name: data.name,
-        industry: data.finnhubIndustry,
-        marketCap: data.marketCapitalization,
-        shareOutstanding: data.shareOutstanding,
-        country: data.country,
-        currency: data.currency,
-        exchange: data.exchange,
-        weburl: data.weburl,
-        logo: data.logo,
-        isRealData: true
-      };
-    } catch (error) {
-      console.error(`Finnhub profile error for ${symbol}:`, error);
-      return {};
-    }
-  };
-
-
 
   // Smart data fetching strategy
   const fetchStockData = async (symbol) => {
@@ -117,19 +74,8 @@ export const useSmartPolling = (symbols) => {
       // Get existing data
       const existing = stockData[symbol] || {};
       
-      // Always fetch real-time quote from multiple sources
+      // Always fetch real-time quote
       const quote = await fetchRealQuoteData(symbol);
-      
-      // Fetch profile if we don't have it (once per symbol)
-      let profile = existing.name ? existing : {};
-      if (!existing.name) {
-        try {
-          profile = await fetchFinnhubProfile(symbol);
-        } catch (error) {
-          console.error(`Profile fetch failed for ${symbol}:`, error);
-          profile = {};
-        }
-      }
 
       // No mock fundamentals - only use real data if available
       let fundamentals = existing.pe ? existing : {};
@@ -138,23 +84,18 @@ export const useSmartPolling = (symbols) => {
       const combinedData = {
         // Keep existing data as base
         ...existing,
-        
+
         // Add quote data (always available)
         ...(quote || {}),
-        
-        // Add profile data (company info)
-        ...(profile || {}),
-        
+
         // Add fundamentals (financial ratios)
         ...(fundamentals || {}),
-        
+
         // Ensure we have basic info
         symbol: symbol,
-        name: profile?.name || existing.name || null,
         lastUpdated: new Date(),
         isLoading: false,
         hasQuoteData: !!quote,
-        hasProfileData: !!profile?.name,
         hasFundamentalsData: !!fundamentals?.pe,
 
         // Add data source indicators
