@@ -20,17 +20,7 @@ const BloombergSimple = () => {
   
   // Use smart polling for real data
   const { stockData, isLoading, lastUpdated, error, refreshAll } = useSmartPolling(watchedSymbols);
-  
-  // Fallback data for when APIs are loading or fail
-  const fallbackData = {
-    'AAPL': { name: 'Apple Inc.', price: 185.25, change: 2.45, changePercent: 1.34, high: 187.50, low: 182.10, open: 184.00, marketCap: 2800000, pe: 28.5, exchange: 'NASDAQ' },
-    'MSFT': { name: 'Microsoft Corporation', price: 378.85, change: -1.25, changePercent: -0.33, high: 380.00, low: 375.50, open: 379.20, marketCap: 2810000, pe: 32.1, exchange: 'NASDAQ' },
-    'GOOGL': { name: 'Alphabet Inc.', price: 142.75, change: 0.85, changePercent: 0.60, high: 144.20, low: 141.50, open: 142.00, marketCap: 1750000, pe: 25.8, exchange: 'NASDAQ' },
-    'TSLA': { name: 'Tesla Inc.', price: 208.45, change: 5.25, changePercent: 2.58, high: 210.00, low: 205.30, open: 206.80, marketCap: 665000, pe: 45.2, exchange: 'NASDAQ' },
-    'NVDA': { name: 'NVIDIA Corporation', price: 118.75, change: 3.15, changePercent: 2.73, high: 120.50, low: 117.20, open: 118.00, marketCap: 2920000, pe: 58.3, exchange: 'NASDAQ' },
-    'META': { name: 'Meta Platforms Inc.', price: 486.35, change: -2.15, changePercent: -0.44, high: 489.00, low: 484.20, open: 487.50, marketCap: 1200000, pe: 24.7, exchange: 'NASDAQ' }
-  };
-  
+
   // Test volume spike notification
   const testVolumeSpike = () => {
     const testEvent = {
@@ -41,28 +31,31 @@ const BloombergSimple = () => {
       ratio: 3.0,
       timestamp: new Date().toISOString()
     };
-    
+
     const message = createVolumeSpikeMessage(testEvent);
     toast.volumeSpike(message, { duration: 8000 });
     console.log('🧪 Test volume spike notification triggered:', testEvent);
   };
 
-  // Merge real data with fallbacks
+  // Get real data only - no fallbacks
   const getStockData = (symbol) => {
     const realData = stockData[symbol];
-    const fallback = fallbackData[symbol];
-    
-    if (realData && (realData.price || realData.hasQuoteData)) {
+
+    // Only return data if we have real price data
+    if (realData && realData.price) {
       return realData;
     }
-    
-    // Return fallback with loading indicator if still loading
+
+    // Return minimal structure for loading/error states
     return {
-      ...fallback,
       symbol,
-      isLoading: isLoading && !realData,
-      isFallback: true,
-      lastUpdated: new Date()
+      name: null,
+      price: null,
+      change: null,
+      changePercent: null,
+      isLoading: isLoading,
+      hasError: realData?.hasError || false,
+      error: realData?.error || null
     };
   };
   
@@ -187,7 +180,7 @@ const BloombergSimple = () => {
                           {symbol}
                         </h3>
                         <p className="text-gray-300 text-xs truncate" style={{ fontSize: '10px' }}>
-                          {data.name || `${symbol} Inc.`}
+                          {data.name || '---'}
                         </p>
                         {data.exchange && (
                           <p className="text-gray-500 text-xs" style={{ fontSize: '8px' }}>
@@ -245,7 +238,7 @@ const BloombergSimple = () => {
                       {data.pe && (
                         <div className="flex justify-between text-gray-300">
                           <span>P/E:</span>
-                          <span className="text-white font-mono">{data.pe.toFixed(1)}</span>
+                          <span className="text-white font-mono">{typeof data.pe === 'number' ? data.pe.toFixed(1) : '---'}</span>
                         </div>
                       )}
                     </div>
@@ -316,19 +309,19 @@ const BloombergSimple = () => {
                   {getStockData(selectedStock).pe && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">P/E Ratio:</span>
-                      <span className="text-white font-mono">{getStockData(selectedStock).pe.toFixed(2)}</span>
+                      <span className="text-white font-mono">{typeof getStockData(selectedStock).pe === 'number' ? getStockData(selectedStock).pe.toFixed(2) : '---'}</span>
                     </div>
                   )}
                   {getStockData(selectedStock).eps && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">EPS:</span>
-                      <span className="text-white font-mono">${getStockData(selectedStock).eps.toFixed(2)}</span>
+                      <span className="text-white font-mono">{typeof getStockData(selectedStock).eps === 'number' ? `$${getStockData(selectedStock).eps.toFixed(2)}` : '---'}</span>
                     </div>
                   )}
                   {getStockData(selectedStock).beta && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">Beta:</span>
-                      <span className="text-white font-mono">{getStockData(selectedStock).beta.toFixed(2)}</span>
+                      <span className="text-white font-mono">{typeof getStockData(selectedStock).beta === 'number' ? getStockData(selectedStock).beta.toFixed(2) : '---'}</span>
                     </div>
                   )}
                 </div>
@@ -362,7 +355,7 @@ const BloombergSimple = () => {
                   {getStockData(selectedStock).dividendYield && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">Dividend Yield:</span>
-                      <span className="text-white font-mono">{(getStockData(selectedStock).dividendYield * 100).toFixed(2)}%</span>
+                      <span className="text-white font-mono">{typeof getStockData(selectedStock).dividendYield === 'number' ? `${(getStockData(selectedStock).dividendYield * 100).toFixed(2)}%` : '---'}</span>
                     </div>
                   )}
                 </div>
@@ -409,14 +402,18 @@ const BloombergSimple = () => {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-2">
                   <div className={`w-2 h-2 rounded-full ${
-                    getStockData(selectedStock).isFallback ? 'bg-yellow-500' : 'bg-bloomberg-status-connected'
+                    getStockData(selectedStock).isRealData ? 'bg-bloomberg-status-connected' :
+                    getStockData(selectedStock).hasError ? 'bg-red-500' : 'bg-yellow-500'
                   }`}></div>
                   <span className="text-gray-400">
-                    {getStockData(selectedStock).isFallback ? 'Demo Data' : 'Live Data'}
+                    {getStockData(selectedStock).isRealData ? 'Live Data (Twelve Data)' :
+                     getStockData(selectedStock).hasError ? 'Error - No Data' : 'Loading...'}
                   </span>
                 </div>
                 <span className="text-gray-500">
-                  Updated: {getStockData(selectedStock).lastUpdated?.toLocaleTimeString()}
+                  {getStockData(selectedStock).lastUpdated ?
+                    `Updated: ${getStockData(selectedStock).lastUpdated.toLocaleTimeString()}` :
+                    '---'}
                 </span>
               </div>
             </div>

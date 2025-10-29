@@ -118,16 +118,22 @@ const Portfolio = () => {
     <h2 className="text-3xl font-bold text-gray-900 mb-8">About Me</h2>
     <div className="space-y-4">
       <p className="text-lg text-gray-600 leading-relaxed">
-        Curious, independent thinker with a strong technical foundation (B.Sc. in Computer Science & Math) and hands-on research experience in tech and AI.
+        Data & ML engineer. I build end-to-end pipelines that turn messy, multi-source data into reliable, production-ready datasets and models.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        <strong>Current Research:</strong> Research Assistant at Ariel University's Civil Engineering Department, developing ML pipelines for pedestrian volume prediction using geospatial, temporal, and environmental data with CatBoost classifiers.
+        <strong>Stack.</strong> Python (Pandas, NumPy, scikit-learn, Matplotlib), SQL (advanced), CatBoost; modular code with tests, logging, and docs.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        <strong>Technical Skills:</strong> Python (Pandas, NumPy, Scikit-learn, Matplotlib), SQL, MongoDB, GeoPandas, OSMnx, spatial data processing, and modern AI tools (Claude, GPT, Cursor).
+        <strong>Pipelines.</strong> Ingestion → validation → transformation/feature engineering → training/evaluation → deploy via lightweight services/APIs.
       </p>
       <p className="text-lg text-gray-600 leading-relaxed">
-        <strong>Impact-Driven Work:</strong> Co-developed web tools for urban design research, integrated multi-source GIS datasets, and delivered actionable intelligence under tight deadlines. Looking to join teams that think ahead of the curve and value clarity, sharp questions, and real tech understanding.
+        <strong>Quality.</strong> Schema design, data contracts, versioned transforms, and reproducible runs at scale.
+      </p>
+      <p className="text-lg text-gray-600 leading-relaxed">
+        <strong>Outcomes.</strong> Experienced in extracting data insights from big data and different types of data.
+      </p>
+      <p className="text-lg text-gray-600 leading-relaxed">
+        <strong>Background.</strong> B.Sc. in Computer Science & Mathematics; comfortable moving fast and communicating clearly with product and engineering.
       </p>
     </div>
   </div>
@@ -142,6 +148,7 @@ const Portfolio = () => {
 
       {/* Deep Learning Project */}
       <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-sm font-bold text-black mb-2">DEEP LEARNING MODELS</p>
         <h3 className="text-xl font-semibold mb-2">Deep Learning Course Project</h3>
         <p className="text-gray-600 mb-4">
           Developed and optimized various neural network architectures, including CNNs (with MobileNetV2 and ResNet), RNNs, Multilayer Neural Networks, and Logistic Regression models. Explored different approaches to improve model performance. Focused on binary classification using PyTorch.
@@ -161,6 +168,7 @@ const Portfolio = () => {
 
       {/* ML Final Project */}
       <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-sm font-bold text-black mb-2">ML CLASSIFICATION</p>
         <h3 className="text-xl font-semibold mb-2">ML_Final_Project</h3>
         <p className="text-gray-600 mb-4">
           Comprehensive machine learning project focused on advanced model development, feature engineering, and performance evaluation. Includes data preprocessing, model selection, and in-depth analysis using Python and popular ML libraries. See the repository for full details and code.
@@ -180,6 +188,7 @@ const Portfolio = () => {
 
       {/* Pedestrian Volume Prediction Project */}
       <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-sm font-bold text-black mb-2">ML PEDESTRIAN MODEL</p>
         <h3 className="text-xl font-semibold mb-2">ML-Models-for-Pedestrian-Volume-Prediction</h3>
         <p className="text-gray-600 mb-4">
           Developed and compared multiple machine learning models to predict pedestrian volume based on real-world data. The project covers data analysis, feature extraction, model training, and evaluation. All code and results are available in the repository.
@@ -187,6 +196,26 @@ const Portfolio = () => {
         <div className="flex items-center space-x-4">
           <a
             href="https://github.com/NoamTeshuva/ML-Models-for-Pedestrian-Volume-Prediction"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <Github className="mr-1" size={16} />
+            View Code
+          </a>
+        </div>
+      </div>
+
+      {/* Pedestrian Web Project */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-sm font-bold text-black mb-2">PEDESTRIAN WEB APP</p>
+        <h3 className="text-xl font-semibold mb-2">Pedestrian Volume Prediction Web Application</h3>
+        <p className="text-gray-600 mb-4">
+          Interactive web application for the pedestrian volume prediction project. This site provides a user-friendly interface to explore the ML models, visualize predictions, and interact with the pedestrian volume prediction system developed in the research.
+        </p>
+        <div className="flex items-center space-x-4">
+          <a
+            href="https://github.com/NoamTeshuva/pedestrian-web"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800 flex items-center"
@@ -205,7 +234,7 @@ const Portfolio = () => {
       {/* Contact Section */}
       <section id="contact" className="py-20">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Contact</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Contact</h2>
           <div className="flex flex-col items-center space-y-6">
             <a 
               href={`mailto:${personalInfo.email}`}

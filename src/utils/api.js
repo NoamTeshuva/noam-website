@@ -1,134 +1,86 @@
-// Alpha Vantage API configuration
-const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
-const API_KEY = process.env.REACT_APP_ALPHA_VANTAGE_KEY;
+// Twelve Data API configuration (via Cloudflare Worker proxy)
+const TWELVE_DATA_API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
 
-// Finnhub API configuration  
+// Finnhub API configuration
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const FINNHUB_KEY = process.env.REACT_APP_FINNHUB_KEY;
 
-// Alpha Vantage API functions
-export const alphaVantageAPI = {
-  // Search for stocks by symbol or name
-  searchSymbol: async (keywords) => {
-    try {
-      const response = await fetch(
-        `${ALPHA_VANTAGE_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keywords)}&apikey=${API_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data['Error Message']) {
-        throw new Error(data['Error Message']);
-      }
-      
-      return data.bestMatches || [];
-    } catch (error) {
-      console.error('Alpha Vantage search error:', error);
-      throw error;
-    }
-  },
-
+// Twelve Data API functions (via Cloudflare Worker)
+export const twelveDataAPI = {
   // Get real-time quote
   getQuote: async (symbol) => {
     try {
       const response = await fetch(
-        `${ALPHA_VANTAGE_BASE_URL}?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`
+        `${TWELVE_DATA_API_BASE}/quote?symbol=${encodeURIComponent(symbol)}`,
+        { cache: "no-store" }
       );
-      const data = await response.json();
-      
-      if (data['Error Message']) {
-        throw new Error(data['Error Message']);
+
+      if (!response.ok) {
+        throw new Error(`Quote fetch failed: ${response.status}`);
       }
-      
-      const quote = data['Global Quote'];
-      if (!quote) {
-        throw new Error('No quote data available');
+
+      const data = await response.json();
+
+      if (data.code === 400 || data.status === 'error') {
+        throw new Error(data.message || 'Quote data unavailable');
       }
 
       return {
-        symbol: quote['01. symbol'],
-        price: parseFloat(quote['05. price']),
-        change: parseFloat(quote['09. change']),
-        changePercent: quote['10. change percent'].replace('%', ''),
-        volume: parseInt(quote['06. volume']),
-        previousClose: parseFloat(quote['08. previous close']),
-        lastUpdated: new Date(quote['07. latest trading day'])
+        symbol: data.symbol,
+        price: parseFloat(data.close) || 0,
+        change: parseFloat(data.change) || 0,
+        changePercent: parseFloat(data.percent_change) || 0,
+        volume: parseInt(data.volume) || 0,
+        previousClose: parseFloat(data.previous_close) || 0,
+        open: parseFloat(data.open) || 0,
+        high: parseFloat(data.high) || 0,
+        low: parseFloat(data.low) || 0,
+        lastUpdated: new Date(),
+        isRealData: true,
+        source: 'Twelve Data'
       };
     } catch (error) {
-      console.error('Alpha Vantage quote error:', error);
+      console.error('Twelve Data quote error:', error);
       throw error;
     }
   },
 
-  // Get company overview (fundamentals)
-  getOverview: async (symbol) => {
+  // Get time series data (for intraday/volume calculations)
+  getTimeSeries: async (symbol, interval = '1min', outputsize = '1') => {
     try {
       const response = await fetch(
-        `${ALPHA_VANTAGE_BASE_URL}?function=OVERVIEW&symbol=${symbol}&apikey=${API_KEY}`
+        `${TWELVE_DATA_API_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}`,
+        { cache: "no-store" }
       );
+
+      if (!response.ok) {
+        throw new Error(`Time series fetch failed: ${response.status}`);
+      }
+
       const data = await response.json();
-      
-      if (data['Error Message']) {
-        throw new Error(data['Error Message']);
+
+      if (data.code === 400 || data.status === 'error') {
+        throw new Error(data.message || 'Time series data unavailable');
       }
 
-      return {
-        symbol: data.Symbol,
-        name: data.Name,
-        description: data.Description,
-        sector: data.Sector,
-        industry: data.Industry,
-        marketCap: parseInt(data.MarketCapitalization) || 0,
-        pe: parseFloat(data.PERatio) || null,
-        pegRatio: parseFloat(data.PEGRatio) || null,
-        bookValue: parseFloat(data.BookValue) || null,
-        dividendYield: parseFloat(data.DividendYield) || null,
-        eps: parseFloat(data.EPS) || null,
-        beta: parseFloat(data.Beta) || null,
-        week52High: parseFloat(data['52WeekHigh']) || null,
-        week52Low: parseFloat(data['52WeekLow']) || null,
-        sharesOutstanding: parseInt(data.SharesOutstanding) || 0,
-        exchange: data.Exchange
-      };
-    } catch (error) {
-      console.error('Alpha Vantage overview error:', error);
-      throw error;
-    }
-  },
-
-  // Get intraday data for volume calculations
-  getIntraday: async (symbol, interval = '1min') => {
-    try {
-      const response = await fetch(
-        `${ALPHA_VANTAGE_BASE_URL}?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=${interval}&apikey=${API_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data['Error Message']) {
-        throw new Error(data['Error Message']);
-      }
-
-      const timeSeries = data[`Time Series (${interval})`];
-      if (!timeSeries) {
-        throw new Error('No intraday data available');
-      }
-
-      // Convert to array format
-      const intradayData = Object.entries(timeSeries).map(([timestamp, values]) => ({
-        timestamp: new Date(timestamp),
-        open: parseFloat(values['1. open']),
-        high: parseFloat(values['2. high']),
-        low: parseFloat(values['3. low']),
-        close: parseFloat(values['4. close']),
-        volume: parseInt(values['5. volume'])
+      const values = data.values || [];
+      return values.map(item => ({
+        timestamp: new Date(item.datetime),
+        open: parseFloat(item.open),
+        high: parseFloat(item.high),
+        low: parseFloat(item.low),
+        close: parseFloat(item.close),
+        volume: parseInt(item.volume)
       }));
-
-      return intradayData.sort((a, b) => a.timestamp - b.timestamp);
     } catch (error) {
-      console.error('Alpha Vantage intraday error:', error);
+      console.error('Twelve Data time series error:', error);
       throw error;
     }
   }
 };
+
+// Backward compatibility - alias for existing code
+export const alphaVantageAPI = twelveDataAPI;
 
 // Finnhub API functions
 export const finnhubAPI = {

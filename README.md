@@ -57,6 +57,44 @@ To run this project locally:
 
 4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser
 
+## Environment Variables
+
+For full functionality including real-time stock data, you'll need to set up API keys:
+
+1. **Deploy the Cloudflare Worker** for Twelve Data API:
+   ```bash
+   # Set your Twelve Data API key as a secret
+   npx wrangler secret put TWELVEDATA_KEY
+   # (Paste your Twelve Data API key when prompted)
+
+   # Deploy the worker
+   npx wrangler deploy
+   ```
+
+2. Copy the environment template:
+   ```bash
+   cp .env.production.example .env.production
+   ```
+
+3. Get your API keys:
+   - **Twelve Data API Key**: Sign up at [twelvedata.com](https://twelvedata.com/) (Free plan: ~800 calls/day)
+   - **Finnhub API Key**: Sign up at [finnhub.io](https://finnhub.io/) (Optional, for company profiles)
+
+4. Add your worker URL to `.env.production`:
+   ```
+   REACT_APP_WORKER_URL=https://twelvedata-proxy.YOUR_SUBDOMAIN.workers.dev
+   REACT_APP_FINNHUB_KEY=your_finnhub_key_here
+   ```
+
+**Security Note**:
+- Never commit actual API keys to version control
+- The Twelve Data API key is stored securely in Cloudflare Worker secrets
+- The `.env.production` file is already included in `.gitignore`
+
+## Data Sources
+
+**Real-time Stock Data**: Powered by [Twelve Data](https://twelvedata.com) via Cloudflare Worker proxy with 60-second edge caching. Free plan is for personal use only; public redistribution requires a paid plan and attribution.
+
 ## Analytics
 
 The website uses Google Analytics to track visitor metrics and improve user experience. This provides valuable insights into visitor behavior and helps optimize site performance.

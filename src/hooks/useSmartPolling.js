@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { twelveDataAPI } from '../utils/api';
 
 // Free API endpoints
 const FINNHUB_BASE = 'https://finnhub.io/api/v1';
-const ALPHA_VANTAGE_BASE = 'https://www.alphavantage.co/query';
 
-// API keys (you'll need to add these to your .env file)
-const FINNHUB_KEY = process.env.REACT_APP_FINNHUB_KEY || 'demo'; // Finnhub demo key works for testing
-const ALPHA_VANTAGE_KEY = process.env.REACT_APP_ALPHA_VANTAGE_KEY || 'demo';
-
-// Environment variables configured
-// Set REACT_APP_FINNHUB_KEY and REACT_APP_ALPHA_VANTAGE_KEY in .env for live data
+// API keys from environment variables
+const FINNHUB_KEY = process.env.REACT_APP_FINNHUB_KEY;
 
 export const useSmartPolling = (symbols) => {
   const [stockData, setStockData] = useState({});
@@ -18,133 +14,55 @@ export const useSmartPolling = (symbols) => {
   const [error, setError] = useState(null);
   const intervalsRef = useRef({});
 
-  // Try multiple APIs for real stock data - Yahoo Finance prioritized
+  // Fetch real stock data using Twelve Data API (via Cloudflare Worker)
   const fetchRealQuoteData = async (symbol) => {
-
-    // Try Yahoo Finance API (free, no API key needed)
     try {
-      // Use Yahoo Finance directly - it supports CORS
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`;
-      const response = await fetch(yahooUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data?.chart?.result?.[0]?.meta) {
-          const meta = data.chart.result[0].meta;
-          const currentPrice = meta.regularMarketPrice || meta.previousClose;
-          const previousClose = meta.previousClose || meta.chartPreviousClose;
-          const change = currentPrice - previousClose;
-          const changePercent = (change / previousClose) * 100;
+      const quote = await twelveDataAPI.getQuote(symbol);
 
-          return {
-            symbol,
-            price: parseFloat(currentPrice.toFixed(2)),
-            change: parseFloat(change.toFixed(2)),
-            changePercent: parseFloat(changePercent.toFixed(2)),
-            high: meta.regularMarketDayHigh || currentPrice * 1.02,
-            low: meta.regularMarketDayLow || currentPrice * 0.98,
-            open: meta.regularMarketOpen || previousClose,
-            previousClose: previousClose,
-            timestamp: Date.now(),
-            isRealData: true,
-            source: 'Yahoo Finance'
-          };
-        }
-      }
-    } catch (error) {
-      console.warn(`Yahoo Finance direct API failed for ${symbol}`);
-    }
-
-    // Try AlphaVantage demo endpoint (some free data available)
-    try {
-      const avUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=demo`;
-      const response = await fetch(avUrl);
-      const data = await response.json();
-      
-      const quote = data['Global Quote'];
-      if (quote && quote['05. price']) {
-        const currentPrice = parseFloat(quote['05. price']);
-        const change = parseFloat(quote['09. change']);
-        const changePercent = parseFloat(quote['10. change percent'].replace('%', ''));
-        
+      if (quote && quote.price) {
         return {
-          symbol,
-          price: currentPrice,
-          change: change,
-          changePercent: changePercent,
-          high: parseFloat(quote['03. high']),
-          low: parseFloat(quote['04. low']),
-          open: parseFloat(quote['02. open']),
-          previousClose: parseFloat(quote['08. previous close']),
+          symbol: quote.symbol,
+          price: quote.price,
+          change: quote.change,
+          changePercent: quote.changePercent,
+          high: quote.high,
+          low: quote.low,
+          open: quote.open,
+          previousClose: quote.previousClose,
+          volume: quote.volume,
           timestamp: Date.now(),
           isRealData: true,
-          source: 'Alpha Vantage'
+          source: 'Twelve Data'
         };
       }
     } catch (error) {
-      console.warn(`Alpha Vantage demo failed for ${symbol}, falling back to mock data...`);
+      console.error(`Twelve Data API failed for ${symbol}:`, error);
+      throw error; // Propagate error instead of returning mock data
     }
 
-    // Fallback to mock data if all APIs fail
-    return generateMockQuoteData(symbol);
+    // No data available
+    return null;
   };
 
-  // Generate realistic mock data when API fails (Updated with current approximate prices)
-  const generateMockQuoteData = (symbol) => {
-    const mockPrices = {
-      'AAPL': { base: 229.87, volatility: 0.02 },
-      'MSFT': { base: 425.65, volatility: 0.015 },
-      'GOOGL': { base: 178.32, volatility: 0.025 },
-      'TSLA': { base: 244.56, volatility: 0.04 },
-      'NVDA': { base: 133.20, volatility: 0.035 },
-      'META': { base: 562.95, volatility: 0.025 },
-      'AMZN': { base: 186.43, volatility: 0.02 },
-      'NFLX': { base: 668.25, volatility: 0.03 }
-    };
-
-    const mockData = mockPrices[symbol] || { base: 100, volatility: 0.02 };
-    
-    // Add time-based variation to simulate realistic market movement
-    const timeVariation = Math.sin(Date.now() / 60000) * mockData.volatility * 0.5;
-    const randomChange = (Math.random() - 0.5) * mockData.volatility * mockData.base + timeVariation;
-    const currentPrice = mockData.base + randomChange;
-    const changePercent = (randomChange / mockData.base) * 100;
-
-    return {
-      symbol,
-      price: parseFloat(currentPrice.toFixed(2)),
-      change: parseFloat(randomChange.toFixed(2)),
-      changePercent: parseFloat(changePercent.toFixed(2)),
-      high: parseFloat((currentPrice * 1.02).toFixed(2)),
-      low: parseFloat((currentPrice * 0.98).toFixed(2)),
-      open: parseFloat((mockData.base).toFixed(2)),
-      previousClose: parseFloat((mockData.base - randomChange).toFixed(2)),
-      timestamp: Date.now(),
-      isRealData: false,
-      isMockData: true,
-      source: 'Mock Data (Realistic Simulation)'
-    };
-  };
 
   // Fetch company profile from Finnhub
   const fetchFinnhubProfile = async (symbol) => {
+    if (!FINNHUB_KEY || FINNHUB_KEY === 'demo') {
+      console.warn(`No Finnhub API key configured for ${symbol}`);
+      return {};
+    }
+
     try {
       const response = await fetch(
         `${FINNHUB_BASE}/stock/profile2?symbol=${symbol}&token=${FINNHUB_KEY}`
       );
       const data = await response.json();
-      
+
       if (data.error || !data.name) {
         console.warn(`Finnhub profile API error for ${symbol}:`, data.error || 'No profile data');
-        return generateMockProfileData(symbol);
+        return {};
       }
-      
+
       return {
         name: data.name,
         industry: data.finnhubIndustry,
@@ -159,68 +77,11 @@ export const useSmartPolling = (symbols) => {
       };
     } catch (error) {
       console.error(`Finnhub profile error for ${symbol}:`, error);
-      return generateMockProfileData(symbol);
-    }
-  };
-
-  // Generate mock profile data when API fails
-  const generateMockProfileData = (symbol) => {
-    const mockProfiles = {
-      'AAPL': { name: 'Apple Inc.', industry: 'Technology', exchange: 'NASDAQ' },
-      'MSFT': { name: 'Microsoft Corporation', industry: 'Technology', exchange: 'NASDAQ' },
-      'GOOGL': { name: 'Alphabet Inc.', industry: 'Technology', exchange: 'NASDAQ' },
-      'TSLA': { name: 'Tesla Inc.', industry: 'Automotive', exchange: 'NASDAQ' },
-      'NVDA': { name: 'NVIDIA Corporation', industry: 'Technology', exchange: 'NASDAQ' },
-      'META': { name: 'Meta Platforms Inc.', industry: 'Technology', exchange: 'NASDAQ' },
-      'AMZN': { name: 'Amazon.com Inc.', industry: 'E-commerce', exchange: 'NASDAQ' },
-      'NFLX': { name: 'Netflix Inc.', industry: 'Entertainment', exchange: 'NASDAQ' }
-    };
-
-    const profile = mockProfiles[symbol] || { name: `${symbol} Inc.`, industry: 'Unknown', exchange: 'NYSE' };
-    
-    return {
-      name: profile.name,
-      industry: profile.industry,
-      marketCap: Math.random() * 2000000 + 100000, // Random market cap
-      shareOutstanding: Math.random() * 10000 + 1000,
-      country: 'United States',
-      currency: 'USD',
-      exchange: profile.exchange,
-      weburl: `https://example.com/${symbol.toLowerCase()}`,
-      logo: '',
-      isRealData: false,
-      isMockData: true
-    };
-  };
-
-  // Fetch fundamentals from Alpha Vantage (used sparingly due to 25/day limit)
-  const fetchAlphaVantageOverview = async (symbol) => {
-    try {
-      const response = await fetch(
-        `${ALPHA_VANTAGE_BASE}?function=OVERVIEW&symbol=${symbol}&apikey=${ALPHA_VANTAGE_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data['Error Message'] || data['Note']) {
-        throw new Error(data['Error Message'] || 'API limit reached');
-      }
-      
-      return {
-        pe: parseFloat(data.PERatio) || null,
-        eps: parseFloat(data.EPS) || null,
-        bookValue: parseFloat(data.BookValue) || null,
-        dividendYield: parseFloat(data.DividendYield) || null,
-        beta: parseFloat(data.Beta) || null,
-        week52High: parseFloat(data['52WeekHigh']) || null,
-        week52Low: parseFloat(data['52WeekLow']) || null,
-        sector: data.Sector,
-        description: data.Description
-      };
-    } catch (error) {
-      console.error(`Alpha Vantage error for ${symbol}:`, error);
       return {};
     }
   };
+
+
 
   // Smart data fetching strategy
   const fetchStockData = async (symbol) => {
@@ -235,18 +96,16 @@ export const useSmartPolling = (symbols) => {
       // Fetch profile if we don't have it (once per symbol)
       let profile = existing.name ? existing : {};
       if (!existing.name) {
-        profile = await fetchFinnhubProfile(symbol);
+        try {
+          profile = await fetchFinnhubProfile(symbol);
+        } catch (error) {
+          console.error(`Profile fetch failed for ${symbol}:`, error);
+          profile = {};
+        }
       }
-      
-      // Fetch fundamentals only occasionally (low API limit)
+
+      // No mock fundamentals - only use real data if available
       let fundamentals = existing.pe ? existing : {};
-      const needsFundamentals = !existing.pe || 
-        (Date.now() - (existing.fundamentalsUpdated || 0)) > 24 * 60 * 60 * 1000; // 24 hours
-      
-      if (needsFundamentals && ALPHA_VANTAGE_KEY !== 'demo') {
-        fundamentals = await fetchAlphaVantageOverview(symbol);
-        fundamentals.fundamentalsUpdated = Date.now();
-      }
 
       // Combine all data with fallbacks
       const combinedData = {
@@ -262,20 +121,18 @@ export const useSmartPolling = (symbols) => {
         // Add fundamentals (financial ratios)
         ...(fundamentals || {}),
         
-        // Ensure we have basic info even if APIs fail
+        // Ensure we have basic info
         symbol: symbol,
-        name: profile?.name || existing.name || `${symbol} Inc.`,
+        name: profile?.name || existing.name || null,
         lastUpdated: new Date(),
         isLoading: false,
         hasQuoteData: !!quote,
         hasProfileData: !!profile?.name,
         hasFundamentalsData: !!fundamentals?.pe,
-        
+
         // Add data source indicators
-        isMockData: quote?.isMockData || profile?.isMockData || false,
-        isRealData: quote?.isRealData,
-        dataSource: quote?.isMockData ? 'Mock Data (API Unavailable)' : 
-                   quote?.source ? `Live Data (${quote.source})` : 'Live Data'
+        isRealData: quote?.isRealData || false,
+        dataSource: quote?.source || 'No Data'
       };
 
       // Data successfully updated for symbol
@@ -373,24 +230,26 @@ export const useStockPolling = (symbol) => {
   };
 };
 
-// Format utilities
+// Format utilities - show "---" for missing data
 export const formatters = {
-  price: (price) => price ? `$${price.toFixed(2)}` : '—',
+  price: (price) => (price !== null && price !== undefined && !isNaN(price)) ? `$${price.toFixed(2)}` : '---',
   change: (change, changePercent) => {
-    if (change === null || change === undefined) return '—';
+    if (change === null || change === undefined || isNaN(change)) return '---';
     const sign = change >= 0 ? '+' : '';
-    const percent = changePercent ? ` (${sign}${changePercent.toFixed(2)}%)` : '';
+    const percent = (changePercent !== null && changePercent !== undefined && !isNaN(changePercent))
+      ? ` (${sign}${changePercent.toFixed(2)}%)`
+      : '';
     return `${sign}${change.toFixed(2)}${percent}`;
   },
   volume: (volume) => {
-    if (!volume) return '—';
+    if (!volume || isNaN(volume)) return '---';
     if (volume >= 1e9) return `${(volume / 1e9).toFixed(1)}B`;
     if (volume >= 1e6) return `${(volume / 1e6).toFixed(1)}M`;
     if (volume >= 1e3) return `${(volume / 1e3).toFixed(1)}K`;
     return volume.toLocaleString();
   },
   marketCap: (marketCap) => {
-    if (!marketCap) return '—';
+    if (!marketCap || isNaN(marketCap)) return '---';
     if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(1)}T`;
     if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(1)}B`;
     if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(1)}M`;

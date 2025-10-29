@@ -1,0 +1,9 @@
+name = "twelvedata-proxy"
+main = "workers/twelvedata.js"
+compatibility_date = "2024-11-20"
+
+# Cloudflare Worker for Twelve Data API proxy
+# Keeps API key secure and adds edge caching
+
+[vars]
+# No public vars needed - API key is stored as secret

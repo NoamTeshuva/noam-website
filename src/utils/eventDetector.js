@@ -9,7 +9,7 @@ export const calculateAverageVolume14d = async (symbol) => {
   try {
     // Get historical data from Alpha Vantage (TIME_SERIES_DAILY)
     const response = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${process.env.REACT_APP_ALPHA_VANTAGE_KEY}`
+      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${process.env.REACT_APP_ALPHA_KEY}`
     );
     const data = await response.json();
     
