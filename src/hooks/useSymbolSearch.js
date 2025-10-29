@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { alphaVantageAPI } from '../utils/api';
 
 /**
- * Custom hook for symbol search with debouncing and abort functionality
+ * Custom hook for symbol search - DISABLED (Alpha Vantage removed)
  * @param {string} query - Search query
  * @param {number} debounceMs - Debounce delay in milliseconds
  * @returns {object} - Search results, loading state, and error state
@@ -12,7 +11,7 @@ export const useSymbolSearch = (query, debounceMs = 500) => {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  
+
   const abortControllerRef = useRef(null);
 
   // Debounce the query
@@ -43,12 +42,14 @@ export const useSymbolSearch = (query, debounceMs = 500) => {
 
     // Create new abort controller
     abortControllerRef.current = new AbortController();
-    
+
     setIsSearching(true);
     setError('');
-    
+
     try {
-      const searchResults = await alphaVantageAPI.searchSymbol(searchQuery);
+      // Symbol search disabled - Alpha Vantage API removed
+      // Return empty results
+      const searchResults = [];
       
       // Check if request was aborted
       if (abortControllerRef.current.signal.aborted) {

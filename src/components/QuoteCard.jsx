@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import useLivePrice from '../hooks/useLivePrice';
-// import { alphaVantageAPI, formatMarketCap, formatVolume, withErrorHandling } from '../utils/api';
 import { TrendingUp, TrendingDown, Minus, Volume2, Building2, Target } from 'lucide-react';
 
 export default function QuoteCard({ symbol, isPrimary = false }) {

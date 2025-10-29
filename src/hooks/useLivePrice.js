@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import { alphaVantageAPI } from '../utils/api';
+import { twelveDataAPI } from '../utils/api';
 
 export default function useLivePrice(symbol) {
   const [priceData, setPriceData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   useEffect(() => {
     if (!symbol) return;
-    
+
     let intervalId;
-    
+
     const fetchPrice = async () => {
       try {
         setIsLoading(true);
-        const quote = await alphaVantageAPI.getQuote(symbol);
+        const quote = await twelveDataAPI.getQuote(symbol);
         setPriceData({
           price: quote.price,
           change: quote.change,

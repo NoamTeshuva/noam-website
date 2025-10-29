@@ -76,8 +76,6 @@ export const twelveDataAPI = {
   }
 };
 
-// Backward compatibility - alias for existing code
-export const alphaVantageAPI = twelveDataAPI;
 
 // Utility functions
 export const formatMarketCap = (marketCap) => {
