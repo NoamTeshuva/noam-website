@@ -1,43 +1,22 @@
-import { alphaVantageAPI } from './api.js';
+import { twelveDataAPI } from './api.js';
 
 /**
- * Calculate average daily volume over the past 2 weeks (14 days)
+ * Get average daily volume from Twelve Data API
  * @param {string} symbol - Stock symbol
  * @returns {Promise<number>} - Average daily volume
  */
 export const calculateAverageVolume14d = async (symbol) => {
   try {
-    // Get historical data from Alpha Vantage (TIME_SERIES_DAILY)
-    const response = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${process.env.REACT_APP_ALPHA_KEY}`
-    );
-    const data = await response.json();
-    
-    if (data['Error Message']) {
-      throw new Error(data['Error Message']);
+    // Twelve Data API already provides average_volume in the quote
+    const quote = await twelveDataAPI.getQuote(symbol);
+
+    if (quote && quote.averageVolume) {
+      return quote.averageVolume;
     }
-    
-    const timeSeries = data['Time Series (Daily)'];
-    if (!timeSeries) {
-      throw new Error('No daily data available');
-    }
-    
-    // Get last 14 trading days
-    const dailyVolumes = Object.entries(timeSeries)
-      .slice(0, 14)
-      .map(([date, values]) => parseInt(values['5. volume']))
-      .filter(volume => volume > 0);
-    
-    if (dailyVolumes.length === 0) {
-      return 0;
-    }
-    
-    // Calculate average
-    const averageVolume = dailyVolumes.reduce((sum, volume) => sum + volume, 0) / dailyVolumes.length;
-    
-    return averageVolume;
+
+    return 0;
   } catch (error) {
-    console.error(`Error calculating average volume for ${symbol}:`, error);
+    console.error(`Error fetching average volume for ${symbol}:`, error);
     return 0;
   }
 };
@@ -49,8 +28,8 @@ export const calculateAverageVolume14d = async (symbol) => {
  */
 export const getTodayVolume = async (symbol) => {
   try {
-    // First try to get current volume from Alpha Vantage quote
-    const quote = await alphaVantageAPI.getQuote(symbol);
+    // Get current volume from Twelve Data quote
+    const quote = await twelveDataAPI.getQuote(symbol);
     return quote.volume || 0;
   } catch (error) {
     console.error(`Error getting today's volume for ${symbol}:`, error);
