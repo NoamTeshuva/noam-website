@@ -53,6 +53,8 @@ const BloombergSimple = () => {
       price: null,
       change: null,
       changePercent: null,
+      volume: null,
+      averageVolume: null,
       isLoading: isLoading,
       hasError: realData?.hasError || false,
       error: realData?.error || null
@@ -229,6 +231,10 @@ const BloombergSimple = () => {
                         <span>Low:</span>
                         <span className="text-white font-mono">{formatters.price(data.low)}</span>
                       </div>
+                      <div className="flex justify-between text-gray-300">
+                        <span>Volume:</span>
+                        <span className="text-white font-mono">{formatters.volume(data.volume)}</span>
+                      </div>
                       {data.marketCap && (
                         <div className="flex justify-between text-gray-300">
                           <span>Market Cap:</span>
@@ -291,6 +297,14 @@ const BloombergSimple = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Prev Close:</span>
                     <span className="text-white font-mono">{formatters.price(getStockData(selectedStock).previousClose)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Volume:</span>
+                    <span className="text-white font-mono">{formatters.volume(getStockData(selectedStock).volume)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Avg Volume:</span>
+                    <span className="text-white font-mono">{formatters.volume(getStockData(selectedStock).averageVolume)}</span>
                   </div>
                 </div>
               </div>

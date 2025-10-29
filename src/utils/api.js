@@ -31,6 +31,7 @@ export const twelveDataAPI = {
         change: parseFloat(data.change) || 0,
         changePercent: parseFloat(data.percent_change) || 0,
         volume: parseInt(data.volume) || 0,
+        averageVolume: parseInt(data.average_volume) || 0,
         previousClose: parseFloat(data.previous_close) || 0,
         open: parseFloat(data.open) || 0,
         high: parseFloat(data.high) || 0,
