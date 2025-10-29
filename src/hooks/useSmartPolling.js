@@ -12,7 +12,34 @@ export const useSmartPolling = (symbols) => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
+  const [isMarketOpen, setIsMarketOpen] = useState(false);
   const intervalsRef = useRef({});
+  const marketCheckInterval = useRef(null);
+
+  // Check if US market is currently open (NYSE hours)
+  const checkMarketHours = () => {
+    const now = new Date();
+
+    // Convert to Eastern Time
+    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const day = etTime.getDay(); // 0 = Sunday, 6 = Saturday
+    const hours = etTime.getHours();
+    const minutes = etTime.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
+
+    // Market hours: Monday-Friday, 9:30 AM - 4:00 PM ET
+    const isWeekday = day >= 1 && day <= 5;
+    const marketOpen = 9 * 60 + 30; // 9:30 AM in minutes
+    const marketClose = 16 * 60; // 4:00 PM in minutes
+    const isDuringMarketHours = totalMinutes >= marketOpen && totalMinutes < marketClose;
+
+    const marketIsOpen = isWeekday && isDuringMarketHours;
+    setIsMarketOpen(marketIsOpen);
+
+    console.log(`🕐 Market status: ${marketIsOpen ? 'OPEN' : 'CLOSED'} (ET: ${etTime.toLocaleTimeString()})`);
+
+    return marketIsOpen;
+  };
 
   // Fetch real stock data using Twelve Data API (via Cloudflare Worker)
   const fetchRealQuoteData = async (symbol) => {
@@ -165,38 +192,77 @@ export const useSmartPolling = (symbols) => {
     }
   };
 
-  // Set up polling for each symbol
+  // Set up polling for each symbol - ONLY during market hours
   useEffect(() => {
     if (!symbols || symbols.length === 0) return;
 
-    // Setting up polling for symbols
     setIsLoading(true);
 
     // Clear existing intervals
     Object.values(intervalsRef.current).forEach(clearInterval);
     intervalsRef.current = {};
 
-    // Start polling each symbol
-    symbols.forEach((symbol, index) => {
-      // Stagger initial requests to avoid rate limiting
-      setTimeout(() => {
-        // Initial fetch
-        fetchStockData(symbol);
-        
-        // Set up polling interval (15 seconds for good responsiveness)
-        const interval = setInterval(() => {
-          fetchStockData(symbol);
-        }, 15000);
-        
-        intervalsRef.current[symbol] = interval;
-      }, index * 2000); // 2 second stagger between symbols
-    });
+    // Check market status every minute
+    const startPolling = () => {
+      const marketOpen = checkMarketHours();
+
+      if (marketOpen) {
+        // Market is OPEN - start polling stocks
+        symbols.forEach((symbol, index) => {
+          // Stagger initial requests to avoid rate limiting (2 second stagger)
+          setTimeout(() => {
+            // Initial fetch
+            fetchStockData(symbol);
+
+            // Set up polling interval: 4 minutes = 240,000ms
+            // This gives us ~100 calls per symbol per day (600 total for 6 symbols)
+            const interval = setInterval(() => {
+              if (checkMarketHours()) {
+                fetchStockData(symbol);
+              }
+            }, 240000); // 4 minutes
+
+            intervalsRef.current[symbol] = interval;
+          }, index * 2000); // 2 second stagger between symbols
+        });
+      } else {
+        // Market is CLOSED - fetch once to show last prices, then stop
+        console.log('⏸️ Market closed - fetching last prices only');
+        symbols.forEach((symbol, index) => {
+          setTimeout(() => {
+            fetchStockData(symbol);
+          }, index * 2000);
+        });
+      }
+    };
+
+    // Start polling immediately
+    startPolling();
+
+    // Check market status every minute and restart polling if needed
+    marketCheckInterval.current = setInterval(() => {
+      const wasOpen = isMarketOpen;
+      const nowOpen = checkMarketHours();
+
+      // Market just opened - restart polling
+      if (!wasOpen && nowOpen) {
+        console.log('🔔 Market just opened - starting live polling');
+        startPolling();
+      }
+      // Market just closed - stop polling
+      else if (wasOpen && !nowOpen) {
+        console.log('🔕 Market just closed - stopping live polling');
+        Object.values(intervalsRef.current).forEach(clearInterval);
+        intervalsRef.current = {};
+      }
+    }, 60000); // Check every minute
 
     setIsLoading(false);
 
     // Cleanup
     return () => {
       Object.values(intervalsRef.current).forEach(clearInterval);
+      if (marketCheckInterval.current) clearInterval(marketCheckInterval.current);
       intervalsRef.current = {};
     };
   }, [symbols]);
@@ -213,6 +279,7 @@ export const useSmartPolling = (symbols) => {
     isLoading,
     lastUpdated,
     error,
+    isMarketOpen,
     refreshSymbol: (symbol) => fetchStockData(symbol),
     refreshAll: () => symbols?.forEach(fetchStockData)
   };
@@ -220,12 +287,13 @@ export const useSmartPolling = (symbols) => {
 
 // Helper hook for single symbol
 export const useStockPolling = (symbol) => {
-  const { stockData, isLoading, error, refreshSymbol } = useSmartPolling([symbol]);
-  
+  const { stockData, isLoading, error, isMarketOpen, refreshSymbol } = useSmartPolling([symbol]);
+
   return {
     data: stockData[symbol] || null,
     isLoading,
     error,
+    isMarketOpen,
     refresh: () => refreshSymbol(symbol)
   };
 };
