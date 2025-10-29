@@ -21,7 +21,7 @@ export const twelveDataAPI = {
         throw new Error(data.message || 'Quote data unavailable');
       }
 
-      return {
+      const parsedData = {
         symbol: data.symbol,
         price: parseFloat(data.close) || 0,
         change: parseFloat(data.change) || 0,
@@ -36,6 +36,15 @@ export const twelveDataAPI = {
         isRealData: true,
         source: 'Twelve Data'
       };
+
+      console.log(`📊 ${data.symbol} volume data:`, {
+        raw_volume: data.volume,
+        parsed_volume: parsedData.volume,
+        raw_avg_volume: data.average_volume,
+        parsed_avg_volume: parsedData.averageVolume
+      });
+
+      return parsedData;
     } catch (error) {
       console.error('Twelve Data quote error:', error);
       throw error;
