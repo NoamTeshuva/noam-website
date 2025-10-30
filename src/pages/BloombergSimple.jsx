@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube } from 'lucide-react';
+import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle } from 'lucide-react';
 import { useSmartPolling, formatters } from '../hooks/useSmartPolling';
 import WatchlistSidebar from '../components/WatchlistSidebar';
+import PeersPanel from '../components/PeersPanel';
+import StatsTile from '../components/StatsTile';
 import { useWatchlistStore } from '../store/useWatchlistStore';
 import { useToast } from '../components/NotificationToast';
 import { createVolumeSpikeMessage } from '../utils/eventDetector';
+import { testExhaustion, resetExhaustion, isTDExhausted, getTimeUntilReset } from '../utils/rateLimitManager';
 
 const BloombergSimple = () => {
   console.log('🏢 BloombergSimple component rendering...');
-  
+
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'analysis'
   
   // Get watchlist symbols from store
   const { symbols: watchedSymbols } = useWatchlistStore();
@@ -35,6 +39,21 @@ const BloombergSimple = () => {
     const message = createVolumeSpikeMessage(testEvent);
     toast.volumeSpike(message, { duration: 8000 });
     console.log('🧪 Test volume spike notification triggered:', testEvent);
+  };
+
+  // Test rate limit exhaustion
+  const testRateLimit = () => {
+    if (isTDExhausted()) {
+      resetExhaustion();
+      refreshAll();
+      toast.info('✅ Rate limit test mode disabled - resuming normal API calls', { duration: 4000 });
+      console.log('✅ Rate limit test mode disabled');
+    } else {
+      testExhaustion(5); // 5 minutes
+      const timeRemaining = getTimeUntilReset();
+      toast.warning(`⚠ Rate limit test mode enabled for 5 minutes - will use cached data only`, { duration: 6000 });
+      console.log('🧪 Rate limit test mode enabled - all API calls will use cached data');
+    }
   };
 
   // Get real data only - no fallbacks
@@ -109,13 +128,23 @@ const BloombergSimple = () => {
                 <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
                 <span>REFRESH</span>
               </button>
-              <button 
+              <button
                 onClick={testVolumeSpike}
                 className="flex items-center space-x-1 hover:text-bloomberg-orange transition-colors"
                 title="Test Volume Spike Notification"
               >
                 <TestTube className="h-3 w-3" />
                 <span>TEST</span>
+              </button>
+              <button
+                onClick={testRateLimit}
+                className={`flex items-center space-x-1 transition-colors ${
+                  isTDExhausted() ? 'text-yellow-500 hover:text-yellow-400' : 'hover:text-yellow-500'
+                }`}
+                title={isTDExhausted() ? 'Rate Limit Test Active - Click to Disable' : 'Test Rate Limit Mode'}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                <span>{isTDExhausted() ? 'CACHED' : 'LIMIT'}</span>
               </button>
               <div className="flex items-center space-x-2">
                 <Globe className="h-3 w-3" />
@@ -263,15 +292,34 @@ const BloombergSimple = () => {
                 {selectedStock} {getStockData(selectedStock).exchange || 'US'} Equity
               </h2>
               <div className="flex space-x-4" style={{ fontSize: '11px' }}>
-                <span className="text-bloomberg-activeTab border-b-2 border-bloomberg-activeTab pb-1 font-bold">
+                <span
+                  onClick={() => setActiveTab('overview')}
+                  className={`pb-1 font-bold cursor-pointer transition-colors ${
+                    activeTab === 'overview'
+                      ? 'text-bloomberg-activeTab border-b-2 border-bloomberg-activeTab'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
                   Overview
                 </span>
                 <span className="text-gray-400 hover:text-white cursor-pointer">News</span>
                 <span className="text-gray-400 hover:text-white cursor-pointer">Chart</span>
-                <span className="text-gray-400 hover:text-white cursor-pointer">Analysis</span>
+                <span
+                  onClick={() => setActiveTab('analysis')}
+                  className={`pb-1 font-bold cursor-pointer transition-colors ${
+                    activeTab === 'analysis'
+                      ? 'text-bloomberg-activeTab border-b-2 border-bloomberg-activeTab'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Analysis
+                </span>
               </div>
             </div>
-            
+
+            {/* Overview Tab Content */}
+            {activeTab === 'overview' && (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <h3 className="text-gray-300 font-bold mb-2" style={{ fontSize: '13px' }}>
@@ -410,17 +458,24 @@ const BloombergSimple = () => {
                 </div>
               </div>
             )}
-            
+
+            {/* Peers Panel */}
+            <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
+              <PeersPanel symbol={selectedStock} />
+            </div>
+
             {/* Data Source Indicator */}
             <div className="mt-4 pt-2 border-t border-bloomberg-border-subtle">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-2">
                   <div className={`w-2 h-2 rounded-full ${
+                    getStockData(selectedStock).usingCachedData ? 'bg-yellow-500' :
                     getStockData(selectedStock).isRealData ? 'bg-bloomberg-status-connected' :
                     getStockData(selectedStock).hasError ? 'bg-red-500' : 'bg-yellow-500'
                   }`}></div>
                   <span className="text-gray-400">
-                    {getStockData(selectedStock).isRealData ? 'Live Data (Twelve Data)' :
+                    {getStockData(selectedStock).usingCachedData ? 'Cached Data (Rate Limit)' :
+                     getStockData(selectedStock).isRealData ? 'Live Data (Twelve Data)' :
                      getStockData(selectedStock).hasError ? 'Error - No Data' : 'Loading...'}
                   </span>
                 </div>
@@ -430,14 +485,28 @@ const BloombergSimple = () => {
                     '---'}
                 </span>
               </div>
+              {getStockData(selectedStock).usingCachedData && getStockData(selectedStock).rateLimitMessage && (
+                <div className="mt-2 text-xs text-yellow-500">
+                  ⚠ {getStockData(selectedStock).rateLimitMessage}
+                </div>
+              )}
             </div>
+          </>
+        )}
+
+        {/* Analysis Tab Content */}
+        {activeTab === 'analysis' && (
+          <div>
+            <StatsTile symbol={selectedStock} />
           </div>
         )}
       </div>
+        )}
 
       {/* Status Indicator */}
       <div className="fixed bottom-4 right-4 bg-bloomberg-status-connected text-black px-3 py-2 rounded text-xs font-bold">
         Bloomberg Terminal ✓ Online
+      </div>
       </div>
     </div>
   );

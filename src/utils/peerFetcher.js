@@ -1,22 +1,18 @@
 /**
+ * NOTE: This file is deprecated - use src/services/peers.js instead
+ * Kept for backward compatibility
+ */
+
+import { getPeers as getNewPeers, isPeerDataFallback as checkFallback } from '../services/peers';
+
+/**
  * Fetch top 5 peer stocks for a given symbol
- * NOTE: Finnhub API removed - using predefined peer mappings only
+ * Now uses Finnhub as primary source with TD fallback
  * @param {string} symbol - Stock symbol
  * @returns {Promise<string[]>} - Array of up to 5 peer symbols
  */
 export const getPeers = async (symbol) => {
-  console.log(`🔍 Fetching peers for ${symbol}...`);
-
-  // Use predefined peer mappings for common stocks
-  const fallbackPeers = getFallbackPeers(symbol);
-  if (fallbackPeers.length > 0) {
-    console.log(`📋 Using fallback peers for ${symbol}:`, fallbackPeers);
-    return fallbackPeers;
-  }
-
-  // Return empty array if no peers found
-  console.log(`⚠️ No peers defined for ${symbol}`);
-  return [];
+  return getNewPeers(symbol);
 };
 
 /**
@@ -72,24 +68,29 @@ const getFallbackPeers = (symbol) => {
 };
 
 /**
- * Get peer info with basic data for display
+ * Get peer info with basic data (no live quotes to avoid rate limits)
  * @param {string[]} peerSymbols - Array of peer symbols
- * @returns {Promise<Object[]>} - Array of peer objects with symbol and basic info
+ * @returns {Promise<Object[]>} - Array of peer objects with basic info
  */
 export const getPeersWithInfo = async (peerSymbols) => {
   if (!peerSymbols || peerSymbols.length === 0) return [];
-  
+
   try {
+    // Return basic info without fetching quotes (to avoid TD rate limits)
+    // The watchlist already fetches quotes for main symbols
     const peersWithInfo = peerSymbols.map(symbol => ({
       symbol: symbol,
       name: getCompanyName(symbol),
       sector: getSector(symbol),
       isLoading: false
     }));
-    
+
     return peersWithInfo;
+
   } catch (error) {
     console.error('Error getting peer info:', error);
+
+    // Fallback to minimal info
     return peerSymbols.map(symbol => ({
       symbol: symbol,
       name: `${symbol} Inc.`,
@@ -100,43 +101,98 @@ export const getPeersWithInfo = async (peerSymbols) => {
 };
 
 /**
+ * Check if peer data is from fallback source
+ * @param {string} symbol - Stock symbol
+ * @returns {boolean} - True if from fallback
+ */
+export const isPeerDataFallback = (symbol) => {
+  return checkFallback(symbol);
+};
+
+/**
  * Get company name for common symbols
  * @param {string} symbol - Stock symbol
  * @returns {string} - Company name
  */
 const getCompanyName = (symbol) => {
   const names = {
+    // Tech Giants
     'AAPL': 'Apple Inc.',
     'MSFT': 'Microsoft Corporation',
     'GOOGL': 'Alphabet Inc.',
     'META': 'Meta Platforms Inc.',
     'AMZN': 'Amazon.com Inc.',
-    'TSLA': 'Tesla Inc.',
+
+    // Hardware & Semiconductors
     'NVDA': 'NVIDIA Corporation',
     'AMD': 'Advanced Micro Devices',
     'INTC': 'Intel Corporation',
-    'NFLX': 'Netflix Inc.',
-    'KO': 'The Coca-Cola Company',
-    'PEP': 'PepsiCo Inc.',
-    'JPM': 'JPMorgan Chase & Co.',
-    'BAC': 'Bank of America Corp',
-    'WMT': 'Walmart Inc.',
-    'JNJ': 'Johnson & Johnson',
-    'PFE': 'Pfizer Inc.',
-    'XOM': 'Exxon Mobil Corporation',
-    'CVX': 'Chevron Corporation',
+    'DELL': 'Dell Technologies Inc.',
+    'HPE': 'Hewlett Packard Enterprise',
+    'HPQ': 'HP Inc.',
+    'SMCI': 'Super Micro Computer Inc.',
+    'WDC': 'Western Digital Corporation',
+    'PSTG': 'Pure Storage Inc.',
+    'NTAP': 'NetApp Inc.',
+
+    // EV & Auto
+    'TSLA': 'Tesla Inc.',
     'NIO': 'NIO Inc.',
     'F': 'Ford Motor Company',
     'GM': 'General Motors Company',
+    'RIVN': 'Rivian Automotive Inc.',
+    'LCID': 'Lucid Group Inc.',
+
+    // Cruise & Travel
+    'RCL': 'Royal Caribbean Group',
+    'CCL': 'Carnival Corporation',
+    'NCLH': 'Norwegian Cruise Line Holdings',
+    'CUK': 'Carnival plc',
+    'BKNG': 'Booking Holdings Inc.',
+    'ABNB': 'Airbnb Inc.',
+    'MAR': 'Marriott International',
+    'HLT': 'Hilton Worldwide Holdings',
+    'EXPE': 'Expedia Group Inc.',
+
+    // Entertainment & Streaming
+    'NFLX': 'Netflix Inc.',
     'DIS': 'The Walt Disney Company',
     'ROKU': 'Roku Inc.',
     'SNAP': 'Snap Inc.',
     'SPOT': 'Spotify Technology S.A.',
+
+    // Food & Beverage
+    'KO': 'The Coca-Cola Company',
+    'PEP': 'PepsiCo Inc.',
     'MNST': 'Monster Beverage Corporation',
-    'RIVN': 'Rivian Automotive Inc.',
-    'LCID': 'Lucid Group Inc.'
+
+    // Banking & Finance
+    'JPM': 'JPMorgan Chase & Co.',
+    'BAC': 'Bank of America Corp',
+    'WFC': 'Wells Fargo & Company',
+    'C': 'Citigroup Inc.',
+    'GS': 'Goldman Sachs Group Inc.',
+    'MS': 'Morgan Stanley',
+
+    // Healthcare & Pharma
+    'JNJ': 'Johnson & Johnson',
+    'PFE': 'Pfizer Inc.',
+    'UNH': 'UnitedHealth Group',
+    'ABBV': 'AbbVie Inc.',
+    'MRK': 'Merck & Co.',
+
+    // Energy
+    'XOM': 'Exxon Mobil Corporation',
+    'CVX': 'Chevron Corporation',
+
+    // Retail
+    'WMT': 'Walmart Inc.',
+    'TGT': 'Target Corporation',
+    'HD': 'The Home Depot Inc.',
+    'LOW': 'Lowe\'s Companies Inc.',
+    'COST': 'Costco Wholesale Corporation'
   };
-  
+
   return names[symbol.toUpperCase()] || `${symbol} Inc.`;
 };
 
@@ -147,31 +203,77 @@ const getCompanyName = (symbol) => {
  */
 const getSector = (symbol) => {
   const sectors = {
+    // Technology
     'AAPL': 'Technology',
-    'MSFT': 'Technology', 
+    'MSFT': 'Technology',
     'GOOGL': 'Technology',
     'META': 'Technology',
-    'AMZN': 'Consumer Discretionary',
-    'TSLA': 'Consumer Discretionary',
     'NVDA': 'Technology',
     'AMD': 'Technology',
     'INTC': 'Technology',
-    'NFLX': 'Communication Services',
-    'KO': 'Consumer Staples',
-    'PEP': 'Consumer Staples',
-    'JPM': 'Financials',
-    'BAC': 'Financials',
-    'WMT': 'Consumer Staples',
-    'JNJ': 'Healthcare',
-    'PFE': 'Healthcare',
-    'XOM': 'Energy',
-    'CVX': 'Energy',
+    'DELL': 'Technology',
+    'HPE': 'Technology',
+    'HPQ': 'Technology',
+    'SMCI': 'Technology',
+    'WDC': 'Technology',
+    'PSTG': 'Technology',
+    'NTAP': 'Technology',
+
+    // Consumer Discretionary (Retail, Auto, Travel)
+    'AMZN': 'Consumer Discretionary',
+    'TSLA': 'Consumer Discretionary',
     'NIO': 'Consumer Discretionary',
     'F': 'Consumer Discretionary',
     'GM': 'Consumer Discretionary',
-    'DIS': 'Communication Services'
+    'RIVN': 'Consumer Discretionary',
+    'LCID': 'Consumer Discretionary',
+    'RCL': 'Consumer Discretionary',
+    'CCL': 'Consumer Discretionary',
+    'NCLH': 'Consumer Discretionary',
+    'CUK': 'Consumer Discretionary',
+    'BKNG': 'Consumer Discretionary',
+    'ABNB': 'Consumer Discretionary',
+    'MAR': 'Consumer Discretionary',
+    'HLT': 'Consumer Discretionary',
+    'EXPE': 'Consumer Discretionary',
+    'WMT': 'Consumer Staples',
+    'TGT': 'Consumer Discretionary',
+    'HD': 'Consumer Discretionary',
+    'LOW': 'Consumer Discretionary',
+    'COST': 'Consumer Staples',
+
+    // Communication Services
+    'NFLX': 'Communication Services',
+    'DIS': 'Communication Services',
+    'ROKU': 'Communication Services',
+    'SNAP': 'Communication Services',
+    'SPOT': 'Communication Services',
+
+    // Consumer Staples
+    'KO': 'Consumer Staples',
+    'PEP': 'Consumer Staples',
+    'MNST': 'Consumer Staples',
+
+    // Financials
+    'JPM': 'Financials',
+    'BAC': 'Financials',
+    'WFC': 'Financials',
+    'C': 'Financials',
+    'GS': 'Financials',
+    'MS': 'Financials',
+
+    // Healthcare
+    'JNJ': 'Healthcare',
+    'PFE': 'Healthcare',
+    'UNH': 'Healthcare',
+    'ABBV': 'Healthcare',
+    'MRK': 'Healthcare',
+
+    // Energy
+    'XOM': 'Energy',
+    'CVX': 'Energy'
   };
-  
+
   return sectors[symbol.toUpperCase()] || 'Technology';
 };
 

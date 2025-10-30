@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useWatchlistStore } from '../store/useWatchlistStore';
-import { useSymbolSearch } from '../hooks/useSymbolSearch';
+import { useNasdaqSearch } from '../hooks/useNasdaqSearch';
 import { useWatchlistPeers } from '../hooks/usePeers';
 import useLivePrice from '../hooks/useLivePrice';
 import { sidebarStyles, itemStyles, pillStyles, searchResultStyles } from './WatchlistSidebar.styles';
@@ -17,7 +17,7 @@ const WatchlistSidebar = ({ isOpen, onToggle }) => {
   } = useWatchlistStore();
 
   const stats = getWatchlistStats();
-  const { results: searchResults, isSearching, error: searchError } = useSymbolSearch(searchQuery);
+  const { results: searchResults, isLoading: isSearching, error: searchError } = useNasdaqSearch(searchQuery);
   const { getPeerState, retryPeerFetch } = useWatchlistPeers(symbols);
 
   const handleAddSymbol = useCallback(async (symbol) => {
@@ -93,7 +93,7 @@ const WatchlistSidebar = ({ isOpen, onToggle }) => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search stocks (e.g., AAPL, MSFT)"
+              placeholder="Search NASDAQ tickers (e.g., AAPL, MSFT)"
               disabled={stats.maxReached}
               className={sidebarStyles.searchInput}
             />
@@ -109,11 +109,11 @@ const WatchlistSidebar = ({ isOpen, onToggle }) => {
               <div className={sidebarStyles.searchResults}>
                 {searchResults.map((result) => (
                   <SearchResultItem
-                    key={result['1. symbol']}
+                    key={result.symbol}
                     result={result}
                     onAdd={handleAddSymbol}
-                    isInWatchlist={symbols.includes(result['1. symbol'])}
-                    isAdding={addingSymbols.has(result['1. symbol'])}
+                    isInWatchlist={symbols.includes(result.symbol)}
+                    isAdding={addingSymbols.has(result.symbol)}
                   />
                 ))}
               </div>
@@ -163,9 +163,9 @@ const WatchlistSidebar = ({ isOpen, onToggle }) => {
 
 // Search Result Item Component
 const SearchResultItem = React.memo(({ result, onAdd, isInWatchlist, isAdding }) => {
-  const symbol = result['1. symbol'];
-  const name = result['2. name'];
-  const region = result['4. region'];
+  const symbol = result.symbol;
+  const name = result.name;
+  const isEtf = result.etf;
 
   const handleAdd = useCallback(async () => {
     const result = await onAdd(symbol);
@@ -188,9 +188,15 @@ const SearchResultItem = React.memo(({ result, onAdd, isInWatchlist, isAdding })
     <div className={searchResultStyles.container}>
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <div className={searchResultStyles.symbol}>{symbol}</div>
+          <div className="flex items-center space-x-2">
+            <span className={searchResultStyles.symbol}>{symbol}</span>
+            {isEtf && (
+              <span className="px-2 py-0.5 text-xs bg-bloomberg-accent-blue bg-opacity-20 text-bloomberg-accent-blue rounded">
+                ETF
+              </span>
+            )}
+          </div>
           <div className={searchResultStyles.name}>{name}</div>
-          <div className={searchResultStyles.region}>{region}</div>
         </div>
         <button
           onClick={handleAdd}

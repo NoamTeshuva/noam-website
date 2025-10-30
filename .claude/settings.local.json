@@ -33,7 +33,8 @@
       "Bash(wrangler list:*)",
       "Bash(\"taskkill\" \"/F\" \"/IM\" \"node.exe\")",
       "Bash(wrangler:*)",
-      "Bash(npx wrangler:*)"
+      "Bash(npx wrangler:*)",
+      "Bash(npm run build:test:*)"
     ],
     "deny": []
   }

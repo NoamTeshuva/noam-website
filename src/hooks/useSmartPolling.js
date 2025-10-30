@@ -115,8 +115,33 @@ export const useSmartPolling = (symbols) => {
       
     } catch (error) {
       console.error(`❌ Error fetching ${symbol}:`, error);
+
+      // Check if this is a TD rate limit exhaustion error
+      const errMsg = error.message || '';
+      const isTDExhausted = errMsg.startsWith('TD_EXHAUSTED:');
+
+      if (isTDExhausted) {
+        // Keep showing existing cached data, just mark as cached
+        const existing = stockData[symbol];
+        if (existing && existing.price) {
+          console.warn(`⏸️ Using cached data for ${symbol} due to rate limit`);
+          setStockData(prev => ({
+            ...prev,
+            [symbol]: {
+              ...existing,
+              isLoading: false,
+              usingCachedData: true,
+              rateLimitMessage: errMsg.replace('TD_EXHAUSTED:', ''),
+              lastUpdated: existing.lastUpdated || new Date()
+            }
+          }));
+          return; // Don't set global error
+        }
+      }
+
+      // For other errors, set error state
       setError(error.message);
-      
+
       // Set error state for this symbol
       setStockData(prev => ({
         ...prev,
@@ -180,30 +205,46 @@ export const useSmartPolling = (symbols) => {
     // Start polling immediately
     startPolling();
 
-    // Check market status every minute and restart polling if needed
-    marketCheckInterval.current = setInterval(() => {
-      const wasOpen = isMarketOpen;
-      const nowOpen = checkMarketHours();
+    // Setup market check with dynamic interval
+    const setupMarketCheck = () => {
+      const currentlyOpen = checkMarketHours();
 
-      // Market just opened - restart polling
-      if (!wasOpen && nowOpen) {
-        console.log('🔔 Market just opened - starting live polling');
-        startPolling();
-      }
-      // Market just closed - stop polling
-      else if (wasOpen && !nowOpen) {
-        console.log('🔕 Market just closed - stopping live polling');
-        Object.values(intervalsRef.current).forEach(clearInterval);
-        intervalsRef.current = {};
-      }
-    }, 60000); // Check every minute
+      // When market is open: check every minute to detect close
+      // When market is closed: check every 30 minutes to detect open
+      const checkInterval = currentlyOpen ? 60000 : 1800000; // 1min or 30min
+
+      console.log(`⏰ Next market check in ${currentlyOpen ? '1 minute' : '30 minutes'}`);
+
+      marketCheckInterval.current = setTimeout(() => {
+        const wasOpen = isMarketOpen;
+        const nowOpen = checkMarketHours();
+
+        // Market just opened - restart polling
+        if (!wasOpen && nowOpen) {
+          console.log('🔔 Market just opened - starting live polling');
+          startPolling();
+        }
+        // Market just closed - stop polling
+        else if (wasOpen && !nowOpen) {
+          console.log('🔕 Market just closed - stopping live polling');
+          Object.values(intervalsRef.current).forEach(clearInterval);
+          intervalsRef.current = {};
+        }
+
+        // Schedule next check
+        setupMarketCheck();
+      }, checkInterval);
+    };
+
+    // Start market checking
+    setupMarketCheck();
 
     setIsLoading(false);
 
     // Cleanup
     return () => {
       Object.values(intervalsRef.current).forEach(clearInterval);
-      if (marketCheckInterval.current) clearInterval(marketCheckInterval.current);
+      if (marketCheckInterval.current) clearTimeout(marketCheckInterval.current);
       intervalsRef.current = {};
     };
   }, [symbols]);

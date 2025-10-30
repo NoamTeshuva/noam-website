@@ -1,3 +1,5 @@
+import { isTDExhausted, handleTDResponse, getTimeUntilReset } from './rateLimitManager';
+
 // Twelve Data API configuration (via Cloudflare Worker proxy)
 const TWELVE_DATA_API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
 
@@ -5,6 +7,13 @@ const TWELVE_DATA_API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
 export const twelveDataAPI = {
   // Get real-time quote
   getQuote: async (symbol) => {
+    // Check if TD API is exhausted
+    if (isTDExhausted()) {
+      const timeRemaining = getTimeUntilReset();
+      console.warn(`⏸️ [TD API] Skipping ${symbol} quote - exhausted (resets in ${timeRemaining})`);
+      throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+    }
+
     try {
       const response = await fetch(
         `${TWELVE_DATA_API_BASE}/quote?symbol=${encodeURIComponent(symbol)}`,
@@ -16,6 +25,12 @@ export const twelveDataAPI = {
       }
 
       const data = await response.json();
+
+      // Check for rate limit error in response
+      if (handleTDResponse(response, data)) {
+        const timeRemaining = getTimeUntilReset();
+        throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+      }
 
       if (data.code === 400 || data.status === 'error') {
         throw new Error(data.message || 'Quote data unavailable');
@@ -53,6 +68,13 @@ export const twelveDataAPI = {
 
   // Get time series data (for intraday/volume calculations)
   getTimeSeries: async (symbol, interval = '1min', outputsize = '1') => {
+    // Check if TD API is exhausted
+    if (isTDExhausted()) {
+      const timeRemaining = getTimeUntilReset();
+      console.warn(`⏸️ [TD API] Skipping ${symbol} time series - exhausted (resets in ${timeRemaining})`);
+      throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+    }
+
     try {
       const response = await fetch(
         `${TWELVE_DATA_API_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}`,
@@ -64,6 +86,12 @@ export const twelveDataAPI = {
       }
 
       const data = await response.json();
+
+      // Check for rate limit error in response
+      if (handleTDResponse(response, data)) {
+        const timeRemaining = getTimeUntilReset();
+        throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+      }
 
       if (data.code === 400 || data.status === 'error') {
         throw new Error(data.message || 'Time series data unavailable');
