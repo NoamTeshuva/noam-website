@@ -3,14 +3,17 @@ import { getPeers } from '../services/peers';
 import { twelveDataAPI } from '../utils/api';
 import { formatters } from '../hooks/useSmartPolling';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { getCachedPeerQuotes, savePeerQuotes } from '../services/peerQuotesCache';
 
 /**
  * PeersPanel - Displays peer stocks with live Twelve Data quotes
  *
  * Data flow:
  * 1. Gets peer tickers from Finnhub (via getPeers service)
- * 2. Fetches live quotes from Twelve Data for each peer
- * 3. Uses delays between requests to respect TD 8 req/min limit
+ * 2. Checks localStorage cache for peer quotes (5min TTL)
+ * 3. If cache hit, uses cached data (instant load)
+ * 4. If cache miss, fetches live quotes from Twelve Data
+ * 5. Uses delays between requests to respect TD 8 req/min limit
  */
 const PeersPanel = ({ symbol }) => {
   const [peers, setPeers] = useState([]);
@@ -18,6 +21,7 @@ const PeersPanel = ({ symbol }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [usingCache, setUsingCache] = useState(false);
 
   useEffect(() => {
     if (!symbol) return;
@@ -27,6 +31,7 @@ const PeersPanel = ({ symbol }) => {
       setError(null);
       setPeerData({});
       setLoadingProgress(0);
+      setUsingCache(false);
 
       try {
         // Step 1: Get peer tickers from Finnhub (cached 24h)
@@ -42,7 +47,19 @@ const PeersPanel = ({ symbol }) => {
         console.log(`✅ [PeersPanel] Got ${peerSymbols.length} peers:`, peerSymbols);
         setPeers(peerSymbols);
 
-        // Step 2: Fetch quotes from Twelve Data with delays
+        // Step 2: Check cache for peer quotes
+        const cachedQuotes = getCachedPeerQuotes(symbol);
+        if (cachedQuotes) {
+          console.log(`📋 [PeersPanel] Using cached peer quotes for ${symbol}`);
+          setPeerData(cachedQuotes);
+          setUsingCache(true);
+          setLoading(false);
+          return; // Skip fetching, use cache
+        }
+
+        console.log(`⏳ [PeersPanel] No cache, fetching fresh quotes...`);
+
+        // Step 3: Fetch quotes from Twelve Data with delays
         const quotes = {};
         const totalPeers = peerSymbols.length;
 
@@ -93,6 +110,9 @@ const PeersPanel = ({ symbol }) => {
           }
         }
 
+        // Step 4: Save quotes to cache for future use
+        savePeerQuotes(symbol, quotes);
+
         setLoading(false);
         console.log(`✅ [PeersPanel] Finished loading ${Object.keys(quotes).length} peers`);
 
@@ -136,12 +156,19 @@ const PeersPanel = ({ symbol }) => {
   return (
     <div className="bg-bloomberg-panel border border-bloomberg-border rounded p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-gray-300 font-bold" style={{ fontSize: '13px' }}>
-          Related Stocks
-          <span className="ml-2 text-xs text-gray-500">
-            ({peers.length} peers)
-          </span>
-        </h3>
+        <div className="flex items-center space-x-2">
+          <h3 className="text-gray-300 font-bold" style={{ fontSize: '13px' }}>
+            Related Stocks
+            <span className="ml-2 text-xs text-gray-500">
+              ({peers.length} peers)
+            </span>
+          </h3>
+          {usingCache && (
+            <span className="text-xs text-gray-400 bg-gray-700/30 px-2 py-0.5 rounded">
+              📋 Cached
+            </span>
+          )}
+        </div>
         {loading && (
           <div className="flex items-center space-x-2">
             <div className="w-24 bg-bloomberg-secondary rounded-full h-1.5">
