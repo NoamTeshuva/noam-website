@@ -22,6 +22,7 @@ const PeersPanel = ({ symbol }) => {
   const [error, setError] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [usingCache, setUsingCache] = useState(false);
+  const [cacheReason, setCacheReason] = useState(null);
 
   useEffect(() => {
     if (!symbol) return;
@@ -32,6 +33,7 @@ const PeersPanel = ({ symbol }) => {
       setPeerData({});
       setLoadingProgress(0);
       setUsingCache(false);
+      setCacheReason(null);
 
       try {
         // Step 1: Get peer tickers from Finnhub (cached 24h)
@@ -48,11 +50,14 @@ const PeersPanel = ({ symbol }) => {
         setPeers(peerSymbols);
 
         // Step 2: Check cache for peer quotes
-        const cachedQuotes = getCachedPeerQuotes(symbol);
-        if (cachedQuotes) {
-          console.log(`📋 [PeersPanel] Using cached peer quotes for ${symbol}`);
-          setPeerData(cachedQuotes);
+        const cachedData = getCachedPeerQuotes(symbol);
+        if (cachedData) {
+          const { _cacheInfo, ...quotes } = cachedData;
+
+          console.log(`📋 [PeersPanel] Using cached peer quotes for ${symbol}`, _cacheInfo);
+          setPeerData(quotes);
           setUsingCache(true);
+          setCacheReason(_cacheInfo?.reason || 'unknown');
           setLoading(false);
           return; // Skip fetching, use cache
         }
@@ -163,7 +168,12 @@ const PeersPanel = ({ symbol }) => {
               ({peers.length} peers)
             </span>
           </h3>
-          {usingCache && (
+          {usingCache && cacheReason === 'market_closed' && (
+            <span className="text-xs text-gray-400 bg-gray-700/30 px-2 py-0.5 rounded">
+              🌙 Market Closed
+            </span>
+          )}
+          {usingCache && cacheReason === 'fresh_cache' && (
             <span className="text-xs text-gray-400 bg-gray-700/30 px-2 py-0.5 rounded">
               📋 Cached
             </span>

@@ -2,7 +2,7 @@
  * Peer Quotes Cache Service
  * Persistent cache for peer stock quotes to avoid refetching on tab switches
  *
- * Cache TTL: 5 minutes
+ * Cache TTL: 5 minutes during market hours, unlimited when market closed
  * Storage: localStorage with memory fallback
  */
 
@@ -10,9 +10,29 @@ const CACHE_KEY = 'peerQuotesCache';
 const CACHE_TTL = 300000; // 5 minutes
 
 /**
+ * Check if US market is currently open (NYSE hours)
+ * @returns {boolean} - True if market is open
+ */
+const isMarketOpen = () => {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay(); // 0 = Sunday, 6 = Saturday
+  const hours = etTime.getHours();
+  const minutes = etTime.getMinutes();
+  const totalMinutes = hours * 60 + minutes;
+
+  // Market hours: Monday-Friday, 9:30 AM - 4:00 PM ET
+  const isWeekday = day >= 1 && day <= 5;
+  const marketOpen = 9 * 60 + 30; // 9:30 AM
+  const marketClose = 16 * 60; // 4:00 PM
+
+  return isWeekday && totalMinutes >= marketOpen && totalMinutes < marketClose;
+};
+
+/**
  * Get cached peer quotes for a parent symbol
  * @param {string} parentSymbol - The parent stock symbol
- * @returns {Object|null} - Cached peer data or null if expired/missing
+ * @returns {Object|null} - Cached peer data with metadata or null if missing
  */
 export const getCachedPeerQuotes = (parentSymbol) => {
   try {
@@ -27,15 +47,36 @@ export const getCachedPeerQuotes = (parentSymbol) => {
 
     const { data, timestamp } = cache[upperSymbol];
     const age = Date.now() - timestamp;
+    const marketOpen = isMarketOpen();
 
-    // Check if cache is still valid
+    // During market closed: use any cached data (ignore TTL)
+    if (!marketOpen) {
+      console.log(`🌙 [PeerQuotesCache] Market closed - using cached data for ${upperSymbol} (${Math.round(age / 1000)}s old)`);
+      return {
+        ...data,
+        _cacheInfo: {
+          age,
+          marketClosed: true,
+          reason: 'market_closed'
+        }
+      };
+    }
+
+    // During market open: respect TTL
     if (age > CACHE_TTL) {
-      console.log(`⏰ [PeerQuotesCache] Cache expired for ${upperSymbol} (${Math.round(age / 1000)}s old)`);
+      console.log(`⏰ [PeerQuotesCache] Cache expired for ${upperSymbol} (${Math.round(age / 1000)}s old) - market is open`);
       return null;
     }
 
     console.log(`📋 [PeerQuotesCache] Cache hit for ${upperSymbol} (${Math.round(age / 1000)}s old)`);
-    return data;
+    return {
+      ...data,
+      _cacheInfo: {
+        age,
+        marketClosed: false,
+        reason: 'fresh_cache'
+      }
+    };
 
   } catch (error) {
     console.warn('[PeerQuotesCache] Failed to load cache:', error);
@@ -143,12 +184,16 @@ export const getPeerQuotesCacheStats = () => {
   }
 };
 
+// Export market hours check for external use
+export { isMarketOpen };
+
 // Expose debug utilities to window
 if (typeof window !== 'undefined') {
   window.peerQuotesCache = {
     get: getCachedPeerQuotes,
     clear: clearPeerQuotesCache,
-    stats: getPeerQuotesCacheStats
+    stats: getPeerQuotesCacheStats,
+    isMarketOpen: isMarketOpen
   };
   console.log('🔧 [PeerQuotesCache] Debug tools available: window.peerQuotesCache');
 }
