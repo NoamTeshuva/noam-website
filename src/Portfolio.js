@@ -146,6 +146,60 @@ const Portfolio = () => {
     <h2 className="text-3xl font-bold text-gray-900 mb-8">Projects</h2>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+      {/* Bloomberg Terminal - Noam Website */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-sm font-bold text-black mb-2">FINANCIAL TERMINAL</p>
+        <div className="mb-4">
+          <img
+            src={require('./pictures/Screenshot 2025-11-16 093758.png')}
+            alt="Bloomberg Terminal Interface"
+            className="w-full h-32 object-cover rounded-lg shadow-sm"
+          />
+        </div>
+        <h3 className="text-xl font-semibold mb-2">Bloomberg-Style Financial Terminal</h3>
+        <p className="text-gray-600 mb-4">
+          Professional financial terminal built with React, featuring real-time stock quotes, watchlists, peer analysis, and comprehensive market data visualization. Includes advanced features like EMA calculations, smart polling, and rate limit management.
+        </p>
+        <div className="flex items-center space-x-4">
+          <a
+            href="https://github.com/NoamTeshuva/noam-website"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <Github className="mr-1" size={16} />
+            View Code
+          </a>
+        </div>
+      </div>
+
+      {/* Pedestrian Web Project */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <p className="text-sm font-bold text-black mb-2">PEDESTRIAN WEB APP</p>
+        <div className="mb-4">
+          <img
+            src={require('./pictures/Screenshot 2025-11-17 151917.png')}
+            alt="Pedestrian Volume Prediction Web App"
+            className="w-full h-32 object-cover rounded-lg shadow-sm"
+          />
+        </div>
+        <h3 className="text-xl font-semibold mb-2">Pedestrian Volume Prediction Web Application</h3>
+        <p className="text-gray-600 mb-4">
+          Interactive web application for the pedestrian volume prediction project. This site provides a user-friendly interface to explore the ML models, visualize predictions, and interact with the pedestrian volume prediction system developed in the research.
+        </p>
+        <div className="flex items-center space-x-4">
+          <a
+            href="https://github.com/NoamTeshuva/pedestrian-web"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <Github className="mr-1" size={16} />
+            View Code
+          </a>
+        </div>
+      </div>
+
       {/* Deep Learning Project */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <p className="text-sm font-bold text-black mb-2">DEEP LEARNING MODELS</p>
@@ -166,26 +220,6 @@ const Portfolio = () => {
         </div>
       </div>
 
-      {/* ML Final Project */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <p className="text-sm font-bold text-black mb-2">ML CLASSIFICATION</p>
-        <h3 className="text-xl font-semibold mb-2">ML_Final_Project</h3>
-        <p className="text-gray-600 mb-4">
-          Comprehensive machine learning project focused on advanced model development, feature engineering, and performance evaluation. Includes data preprocessing, model selection, and in-depth analysis using Python and popular ML libraries. See the repository for full details and code.
-        </p>
-        <div className="flex items-center space-x-4">
-          <a
-            href="https://github.com/NoamTeshuva/ML_Final_Project"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 flex items-center"
-          >
-            <Github className="mr-1" size={16} />
-            View Code
-          </a>
-        </div>
-      </div>
-
       {/* Pedestrian Volume Prediction Project */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <p className="text-sm font-bold text-black mb-2">ML PEDESTRIAN MODEL</p>
@@ -196,26 +230,6 @@ const Portfolio = () => {
         <div className="flex items-center space-x-4">
           <a
             href="https://github.com/NoamTeshuva/ML-Models-for-Pedestrian-Volume-Prediction"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 flex items-center"
-          >
-            <Github className="mr-1" size={16} />
-            View Code
-          </a>
-        </div>
-      </div>
-
-      {/* Pedestrian Web Project */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <p className="text-sm font-bold text-black mb-2">PEDESTRIAN WEB APP</p>
-        <h3 className="text-xl font-semibold mb-2">Pedestrian Volume Prediction Web Application</h3>
-        <p className="text-gray-600 mb-4">
-          Interactive web application for the pedestrian volume prediction project. This site provides a user-friendly interface to explore the ML models, visualize predictions, and interact with the pedestrian volume prediction system developed in the research.
-        </p>
-        <div className="flex items-center space-x-4">
-          <a
-            href="https://github.com/NoamTeshuva/pedestrian-web"
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800 flex items-center"
