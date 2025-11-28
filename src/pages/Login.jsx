@@ -15,15 +15,14 @@ export default function Login() {
 
     if (normalizedUser === 'racquel' && trimmedPass === 'Racquel@2025') {
       sessionStorage.setItem('isAuth', 'true');
+
+      // Dispatch custom event to notify App component immediately
+      window.dispatchEvent(new CustomEvent('authStateChanged', {
+        detail: { isAuthenticated: true }
+      }));
+
       setError('');
       navigate('/bloomberg', { replace: true });
-      
-      // Fallback: Force reload if navigate doesn't work
-      setTimeout(() => {
-        if (window.location.pathname !== '/bloomberg') {
-          window.location.reload();
-        }
-      }, 500);
     } else {
       setError('Invalid username or password');
     }

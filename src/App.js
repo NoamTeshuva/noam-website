@@ -47,20 +47,31 @@ function App() {
       setIsAuthenticated(authState);
     };
 
+    // Listen for custom auth state change events (immediate update)
+    const handleAuthStateChange = (event) => {
+      const authState = event.detail.isAuthenticated;
+      console.log('🔄 Auth state changed (custom event):', authState);
+      setIsAuthenticated(authState);
+    };
+
     // Listen for storage events (from other tabs/windows)
     window.addEventListener('storage', handleStorageChange);
-    
+
+    // Listen for custom auth state change events
+    window.addEventListener('authStateChanged', handleAuthStateChange);
+
     // Also check periodically since sessionStorage events don't fire in same tab
     const interval = setInterval(() => {
       const currentAuth = sessionStorage.getItem('isAuth') === 'true';
       if (currentAuth !== isAuthenticated) {
-        console.log('🔄 Auth state changed:', currentAuth);
+        console.log('🔄 Auth state changed (polling):', currentAuth);
         setIsAuthenticated(currentAuth);
       }
     }, 500);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authStateChanged', handleAuthStateChange);
       clearInterval(interval);
     };
   }, [isAuthenticated]);
