@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle } from 'lucide-react';
 import { useSmartPolling, formatters } from '../hooks/useSmartPolling';
 import WatchlistSidebar from '../components/WatchlistSidebar';
@@ -8,6 +8,7 @@ import { useWatchlistStore } from '../store/useWatchlistStore';
 import { useToast } from '../components/NotificationToast';
 import { createVolumeSpikeMessage } from '../utils/eventDetector';
 import { testExhaustion, resetExhaustion, isTDExhausted, getTimeUntilReset } from '../utils/rateLimitManager';
+import { getAPICounterState } from '../utils/apiCallCounter';
 
 const BloombergSimple = () => {
   console.log('🏢 BloombergSimple component rendering...');
@@ -15,12 +16,22 @@ const BloombergSimple = () => {
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'analysis'
-  
+  const [apiCounterState, setApiCounterState] = useState(getAPICounterState());
+
   // Get watchlist symbols from store
   const { symbols: watchedSymbols } = useWatchlistStore();
-  
+
   // Toast notifications
   const { toast } = useToast();
+
+  // Update API counter state every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setApiCounterState(getAPICounterState());
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
   
   // Use smart polling for real data
   const { stockData, isLoading, lastUpdated, error, refreshAll } = useSmartPolling(watchedSymbols);
@@ -106,6 +117,18 @@ const BloombergSimple = () => {
                   <span className="text-gray-500">
                     {lastUpdated.toLocaleTimeString()}
                   </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2 text-gray-300" style={{ fontSize: '12px' }}>
+                <span className={`font-mono ${
+                  apiCounterState.isAtLimit ? 'text-bloomberg-status-error' :
+                  apiCounterState.isNearLimit ? 'text-yellow-500' :
+                  'text-gray-300'
+                }`}>
+                  API: {apiCounterState.count}/{apiCounterState.limit}
+                </span>
+                {apiCounterState.isNearLimit && (
+                  <span className="text-yellow-500">⚠</span>
                 )}
               </div>
             </div>

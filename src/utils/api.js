@@ -1,4 +1,5 @@
 import { isTDExhausted, handleTDResponse, getTimeUntilReset } from './rateLimitManager';
+import { incrementAPICallCount } from './apiCallCounter';
 
 // Twelve Data API configuration (via Cloudflare Worker proxy)
 const TWELVE_DATA_API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
@@ -19,6 +20,11 @@ export const twelveDataAPI = {
         `${TWELVE_DATA_API_BASE}/quote?symbol=${encodeURIComponent(symbol)}`,
         { cache: "no-store" }
       );
+
+      // Increment API call counter (only for successful requests)
+      if (response.ok) {
+        incrementAPICallCount(`quote:${symbol}`);
+      }
 
       if (!response.ok) {
         throw new Error(`Quote fetch failed: ${response.status}`);
@@ -80,6 +86,11 @@ export const twelveDataAPI = {
         `${TWELVE_DATA_API_BASE}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}`,
         { cache: "no-store" }
       );
+
+      // Increment API call counter (only for successful requests)
+      if (response.ok) {
+        incrementAPICallCount(`time_series:${symbol}`);
+      }
 
       if (!response.ok) {
         throw new Error(`Time series fetch failed: ${response.status}`);
