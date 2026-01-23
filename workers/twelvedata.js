@@ -2,7 +2,23 @@
  * Cloudflare Worker - Market Data API Proxy
  * Proxies Twelve Data and Finnhub APIs
  * Keeps API keys server-side and adds edge caching
+ * Includes JWT-based authentication
  */
+
+// JWT Secret should be set as environment variable: JWT_SECRET
+// Password hash should be set as environment variable: AUTH_PASSWORD_HASH
+// Username should be set as environment variable: AUTH_USERNAME
+
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "Content-Type, Authorization"
+};
+
+// Rate limiting for login attempts (simple in-memory, resets on worker restart)
+const loginAttempts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_ATTEMPTS = 5;
 
 export default {
   async fetch(request, env, ctx) {
@@ -12,17 +28,22 @@ export default {
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET, OPTIONS",
-          "access-control-allow-headers": "Content-Type"
-        }
+        headers: CORS_HEADERS
       });
     }
 
     // Only handle /api/* routes
     if (!pathname.startsWith("/api/")) {
       return new Response("Not found", { status: 404 });
+    }
+
+    // Auth endpoints (no token required)
+    if (pathname === "/api/auth/login") {
+      return handleLogin(request, env);
+    }
+
+    if (pathname === "/api/auth/verify") {
+      return handleVerifyToken(request, env);
     }
 
     // Route to Finnhub or Twelve Data
@@ -34,6 +55,228 @@ export default {
     return handleTwelveDataRequest(pathname, searchParams, env, ctx);
   }
 };
+
+/**
+ * Handle login requests
+ */
+async function handleLogin(request, env) {
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  // Get client IP for rate limiting
+  const clientIP = request.headers.get("cf-connecting-ip") || "unknown";
+
+  // Check rate limit
+  const now = Date.now();
+  const attempts = loginAttempts.get(clientIP) || { count: 0, firstAttempt: now };
+
+  // Reset if window has passed
+  if (now - attempts.firstAttempt > RATE_LIMIT_WINDOW) {
+    attempts.count = 0;
+    attempts.firstAttempt = now;
+  }
+
+  if (attempts.count >= MAX_ATTEMPTS) {
+    const remainingTime = Math.ceil((RATE_LIMIT_WINDOW - (now - attempts.firstAttempt)) / 1000);
+    return jsonResponse({
+      error: "Too many login attempts",
+      retryAfter: remainingTime
+    }, 429);
+  }
+
+  try {
+    const body = await request.json();
+    const { username, password } = body;
+
+    if (!username || !password) {
+      attempts.count++;
+      loginAttempts.set(clientIP, attempts);
+      return jsonResponse({ error: "Missing credentials" }, 400);
+    }
+
+    // Normalize username
+    const normalizedUsername = username.trim().toLowerCase();
+    const expectedUsername = (env.AUTH_USERNAME || "").toLowerCase();
+
+    // Verify credentials
+    const isValidPassword = await verifyPassword(password, env.AUTH_PASSWORD_HASH || "");
+    const isValidUsername = normalizedUsername === expectedUsername;
+
+    if (!isValidUsername || !isValidPassword) {
+      attempts.count++;
+      loginAttempts.set(clientIP, attempts);
+      return jsonResponse({ error: "Invalid credentials" }, 401);
+    }
+
+    // Clear attempts on successful login
+    loginAttempts.delete(clientIP);
+
+    // Generate JWT
+    const token = await generateJWT({ username: normalizedUsername }, env.JWT_SECRET);
+
+    return jsonResponse({
+      success: true,
+      token,
+      expiresIn: 86400 // 24 hours
+    });
+
+  } catch (error) {
+    console.error("Login error:", error);
+    return jsonResponse({ error: "Login failed" }, 500);
+  }
+}
+
+/**
+ * Handle token verification
+ */
+async function handleVerifyToken(request, env) {
+  const authHeader = request.headers.get("Authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return jsonResponse({ valid: false, error: "No token provided" }, 401);
+  }
+
+  const token = authHeader.substring(7);
+
+  try {
+    const payload = await verifyJWT(token, env.JWT_SECRET);
+    if (payload) {
+      return jsonResponse({ valid: true, username: payload.username });
+    }
+    return jsonResponse({ valid: false, error: "Invalid token" }, 401);
+  } catch (error) {
+    return jsonResponse({ valid: false, error: "Token verification failed" }, 401);
+  }
+}
+
+/**
+ * Generate a simple JWT using Web Crypto API
+ */
+async function generateJWT(payload, secret) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+
+  const fullPayload = {
+    ...payload,
+    iat: now,
+    exp: now + 86400 // 24 hours
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload));
+  const data = `${encodedHeader}.${encodedPayload}`;
+
+  const signature = await hmacSign(data, secret);
+  return `${data}.${signature}`;
+}
+
+/**
+ * Verify JWT token
+ */
+async function verifyJWT(token, secret) {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const [header, payload, signature] = parts;
+    const data = `${header}.${payload}`;
+
+    // Verify signature
+    const expectedSignature = await hmacSign(data, secret);
+    if (signature !== expectedSignature) return null;
+
+    // Decode and check expiration
+    const decodedPayload = JSON.parse(base64UrlDecode(payload));
+    const now = Math.floor(Date.now() / 1000);
+
+    if (decodedPayload.exp && decodedPayload.exp < now) {
+      return null; // Token expired
+    }
+
+    return decodedPayload;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * HMAC-SHA256 signing
+ */
+async function hmacSign(data, secret) {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+  return base64UrlEncode(String.fromCharCode(...new Uint8Array(signature)));
+}
+
+/**
+ * Verify password against stored hash (SHA-256 based)
+ * Hash format: salt:hash (both base64url encoded)
+ */
+async function verifyPassword(password, storedHash) {
+  if (!storedHash || !storedHash.includes(":")) return false;
+
+  const [salt, hash] = storedHash.split(":");
+  const encoder = new TextEncoder();
+
+  // Hash the provided password with the same salt
+  const dataToHash = encoder.encode(salt + password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", dataToHash);
+  const computedHash = base64UrlEncode(String.fromCharCode(...new Uint8Array(hashBuffer)));
+
+  // Constant-time comparison
+  return computedHash === hash;
+}
+
+/**
+ * Generate password hash (utility function - run once to generate hash)
+ * Use: generatePasswordHash("yourpassword")
+ */
+async function generatePasswordHash(password) {
+  const encoder = new TextEncoder();
+
+  // Generate random salt
+  const saltBytes = new Uint8Array(16);
+  crypto.getRandomValues(saltBytes);
+  const salt = base64UrlEncode(String.fromCharCode(...saltBytes));
+
+  // Hash password with salt
+  const dataToHash = encoder.encode(salt + password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", dataToHash);
+  const hash = base64UrlEncode(String.fromCharCode(...new Uint8Array(hashBuffer)));
+
+  return `${salt}:${hash}`;
+}
+
+// Base64URL encoding/decoding
+function base64UrlEncode(str) {
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function base64UrlDecode(str) {
+  str = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (str.length % 4) str += "=";
+  return atob(str);
+}
+
+// Helper for JSON responses
+function jsonResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      ...CORS_HEADERS
+    }
+  });
+}
 
 /**
  * Handle Finnhub API requests

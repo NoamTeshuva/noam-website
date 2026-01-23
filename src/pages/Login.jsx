@@ -1,30 +1,71 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
+
 export default function Login() {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
     const normalizedUser = user.trim().toLowerCase();
     const trimmedPass = pass.trim();
 
-    if (normalizedUser === 'racquel' && trimmedPass === 'Racquel@2025') {
+    if (!normalizedUser || !trimmedPass) {
+      setError('Please enter username and password');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: normalizedUser,
+          password: trimmedPass,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 429) {
+        setError(`Too many login attempts. Try again in ${data.retryAfter} seconds.`);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!response.ok || !data.success) {
+        setError(data.error || 'Invalid username or password');
+        setIsLoading(false);
+        return;
+      }
+
+      // Store JWT token
+      sessionStorage.setItem('authToken', data.token);
       sessionStorage.setItem('isAuth', 'true');
+      sessionStorage.setItem('authUser', normalizedUser);
 
       // Dispatch custom event to notify App component immediately
       window.dispatchEvent(new CustomEvent('authStateChanged', {
-        detail: { isAuthenticated: true }
+        detail: { isAuthenticated: true, token: data.token }
       }));
 
-      setError('');
       navigate('/bloomberg', { replace: true });
-    } else {
-      setError('Invalid username or password');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -80,14 +121,18 @@ export default function Login() {
               />
             </div>
             
-            <button 
-              type="submit" 
-              className="w-full bg-bloomberg-button border border-bloomberg-orange text-bloomberg-orange
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full bg-bloomberg-button border border-bloomberg-orange text-bloomberg-orange
                        py-3 rounded-terminal font-bloomberg-sans font-bold text-terminal-base
-                       hover:bg-bloomberg-orange hover:text-bloomberg-primary
-                       transition-all duration-200 transform hover:scale-105"
+                       transition-all duration-200 transform
+                       ${isLoading
+                         ? 'opacity-50 cursor-not-allowed'
+                         : 'hover:bg-bloomberg-orange hover:text-bloomberg-primary hover:scale-105'
+                       }`}
             >
-              ACCESS TERMINAL
+              {isLoading ? 'AUTHENTICATING...' : 'ACCESS TERMINAL'}
             </button>
             
             {error && (

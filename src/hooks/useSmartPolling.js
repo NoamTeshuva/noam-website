@@ -9,6 +9,9 @@ export const useSmartPolling = (symbols) => {
   const [isMarketOpen, setIsMarketOpen] = useState(false);
   const intervalsRef = useRef({});
   const marketCheckInterval = useRef(null);
+  const fundamentalsFetchedRef = useRef(new Set()); // Track which symbols have fundamentals
+  const initialLoadCompleteRef = useRef(false);
+  const pendingFetchesRef = useRef(0);
 
   // Check if US market is currently open (NYSE hours)
   const checkMarketHours = () => {
@@ -65,20 +68,67 @@ export const useSmartPolling = (symbols) => {
     return null;
   };
 
+  // Fetch fundamentals/statistics data (P/E, EPS, Beta, Market Cap)
+  const fetchFundamentals = async (symbol) => {
+    // Skip if already fetched this session
+    if (fundamentalsFetchedRef.current.has(symbol)) {
+      return null;
+    }
 
+    try {
+      const stats = await twelveDataAPI.getStatistics(symbol);
+
+      if (stats) {
+        fundamentalsFetchedRef.current.add(symbol);
+        return {
+          marketCap: stats.marketCap,
+          pe: stats.pe,
+          forwardPe: stats.forwardPe,
+          eps: stats.eps,
+          beta: stats.beta,
+          week52High: stats.week52High,
+          week52Low: stats.week52Low,
+          dividendYield: stats.dividendYield
+        };
+      }
+    } catch (error) {
+      // Don't fail the whole request if statistics fails
+      console.warn(`Statistics fetch failed for ${symbol}:`, error.message);
+      // Mark as fetched to avoid repeated failures
+      fundamentalsFetchedRef.current.add(symbol);
+    }
+
+    return null;
+  };
 
   // Smart data fetching strategy
-  const fetchStockData = async (symbol) => {
+  const fetchStockData = async (symbol, fetchFundamentalsData = false) => {
+    pendingFetchesRef.current++;
+
     try {
-      
       // Get existing data
       const existing = stockData[symbol] || {};
-      
+
       // Always fetch real-time quote
       const quote = await fetchRealQuoteData(symbol);
 
-      // No mock fundamentals - only use real data if available
-      let fundamentals = existing.pe ? existing : {};
+      // Fetch fundamentals on first load (or if requested)
+      let fundamentals = null;
+      if (fetchFundamentalsData && !fundamentalsFetchedRef.current.has(symbol)) {
+        fundamentals = await fetchFundamentals(symbol);
+      }
+
+      // Use existing fundamentals if we have them
+      const existingFundamentals = existing.pe ? {
+        marketCap: existing.marketCap,
+        pe: existing.pe,
+        forwardPe: existing.forwardPe,
+        eps: existing.eps,
+        beta: existing.beta,
+        week52High: existing.week52High,
+        week52Low: existing.week52Low,
+        dividendYield: existing.dividendYield
+      } : {};
 
       // Combine all data with fallbacks
       const combinedData = {
@@ -88,7 +138,8 @@ export const useSmartPolling = (symbols) => {
         // Add quote data (always available)
         ...(quote || {}),
 
-        // Add fundamentals (financial ratios)
+        // Add fundamentals (from existing or newly fetched)
+        ...existingFundamentals,
         ...(fundamentals || {}),
 
         // Ensure we have basic info
@@ -96,14 +147,12 @@ export const useSmartPolling = (symbols) => {
         lastUpdated: new Date(),
         isLoading: false,
         hasQuoteData: !!quote,
-        hasFundamentalsData: !!fundamentals?.pe,
+        hasFundamentalsData: !!(fundamentals?.pe || existingFundamentals.pe),
 
         // Add data source indicators
         isRealData: quote?.isRealData || false,
         dataSource: quote?.source || 'No Data'
       };
-
-      // Data successfully updated for symbol
 
       setStockData(prev => ({
         ...prev,
@@ -112,7 +161,7 @@ export const useSmartPolling = (symbols) => {
 
       setLastUpdated(new Date());
       setError(null);
-      
+
     } catch (error) {
       console.error(`❌ Error fetching ${symbol}:`, error);
 
@@ -155,6 +204,14 @@ export const useSmartPolling = (symbols) => {
           lastUpdated: new Date()
         }
       }));
+    } finally {
+      pendingFetchesRef.current--;
+
+      // Only clear loading state when all initial fetches are complete
+      if (pendingFetchesRef.current === 0 && !initialLoadCompleteRef.current) {
+        initialLoadCompleteRef.current = true;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -162,14 +219,17 @@ export const useSmartPolling = (symbols) => {
   useEffect(() => {
     if (!symbols || symbols.length === 0) return;
 
+    // Reset state for new symbol list
     setIsLoading(true);
+    initialLoadCompleteRef.current = false;
+    pendingFetchesRef.current = 0;
 
     // Clear existing intervals
     Object.values(intervalsRef.current).forEach(clearInterval);
     intervalsRef.current = {};
 
     // Check market status every minute
-    const startPolling = () => {
+    const startPolling = (isInitialLoad = false) => {
       const marketOpen = checkMarketHours();
 
       if (marketOpen) {
@@ -177,14 +237,14 @@ export const useSmartPolling = (symbols) => {
         symbols.forEach((symbol, index) => {
           // Stagger initial requests to avoid rate limiting (2 second stagger)
           setTimeout(() => {
-            // Initial fetch
-            fetchStockData(symbol);
+            // Initial fetch with fundamentals
+            fetchStockData(symbol, isInitialLoad);
 
             // Set up polling interval: 4 minutes = 240,000ms
             // This gives us ~100 calls per symbol per day (600 total for 6 symbols)
             const interval = setInterval(() => {
               if (checkMarketHours()) {
-                fetchStockData(symbol);
+                fetchStockData(symbol, false); // No fundamentals on subsequent fetches
               }
             }, 240000); // 4 minutes
 
@@ -196,14 +256,14 @@ export const useSmartPolling = (symbols) => {
         console.log('⏸️ Market closed - fetching last prices only');
         symbols.forEach((symbol, index) => {
           setTimeout(() => {
-            fetchStockData(symbol);
+            fetchStockData(symbol, isInitialLoad);
           }, index * 2000);
         });
       }
     };
 
-    // Start polling immediately
-    startPolling();
+    // Start polling immediately with initial load flag
+    startPolling(true);
 
     // Setup market check with dynamic interval
     const setupMarketCheck = () => {
@@ -222,7 +282,7 @@ export const useSmartPolling = (symbols) => {
         // Market just opened - restart polling
         if (!wasOpen && nowOpen) {
           console.log('🔔 Market just opened - starting live polling');
-          startPolling();
+          startPolling(false);
         }
         // Market just closed - stop polling
         else if (wasOpen && !nowOpen) {
@@ -239,7 +299,7 @@ export const useSmartPolling = (symbols) => {
     // Start market checking
     setupMarketCheck();
 
-    setIsLoading(false);
+    // Note: isLoading is now set to false in fetchStockData when all fetches complete
 
     // Cleanup
     return () => {

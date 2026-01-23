@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle } from 'lucide-react';
+import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle, LogOut } from 'lucide-react';
 import { useSmartPolling, formatters } from '../hooks/useSmartPolling';
 import WatchlistSidebar from '../components/WatchlistSidebar';
 import PeersPanel from '../components/PeersPanel';
@@ -9,6 +9,7 @@ import { useToast } from '../components/NotificationToast';
 import { createVolumeSpikeMessage } from '../utils/eventDetector';
 import { testExhaustion, resetExhaustion, isTDExhausted, getTimeUntilReset } from '../utils/rateLimitManager';
 import { getAPICounterState } from '../utils/apiCallCounter';
+import { useAuth } from '../App';
 
 const BloombergSimple = () => {
   console.log('🏢 BloombergSimple component rendering...');
@@ -17,12 +18,16 @@ const BloombergSimple = () => {
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'analysis'
   const [apiCounterState, setApiCounterState] = useState(getAPICounterState());
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get watchlist symbols from store
   const { symbols: watchedSymbols } = useWatchlistStore();
 
   // Toast notifications
   const { toast } = useToast();
+
+  // Auth context for logout
+  const auth = useAuth();
 
   // Update API counter state every 5 seconds
   useEffect(() => {
@@ -174,6 +179,14 @@ const BloombergSimple = () => {
                 <span>US MARKETS</span>
                 <span className="text-bloomberg-status-connected">●</span>
               </div>
+              <button
+                onClick={() => auth?.logout()}
+                className="flex items-center space-x-1 hover:text-bloomberg-status-error transition-colors ml-4"
+                title="Logout"
+              >
+                <LogOut className="h-3 w-3" />
+                <span>LOGOUT</span>
+              </button>
             </div>
           </div>
         </div>
@@ -182,16 +195,68 @@ const BloombergSimple = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Search Bar */}
-        <div className="mb-6">
+        <div className="mb-6 relative">
           <div className="flex items-center bg-bloomberg-panel border border-bloomberg-border rounded p-2 max-w-md">
             <Search className="h-4 w-4 text-gray-400 mr-2" />
-            <input 
-              type="text" 
-              placeholder="Enter stock symbol..."
-              className="bg-transparent text-white flex-1 outline-none" 
+            <input
+              type="text"
+              placeholder="Search watchlist symbols..."
+              className="bg-transparent text-white flex-1 outline-none"
               style={{ fontSize: '12px' }}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchQuery) {
+                  // Find matching symbol in watchlist
+                  const match = watchedSymbols.find(s =>
+                    s.toUpperCase().startsWith(searchQuery.toUpperCase())
+                  );
+                  if (match) {
+                    setSelectedStock(match);
+                    setSearchQuery('');
+                  }
+                }
+              }}
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-gray-400 hover:text-white ml-2"
+                style={{ fontSize: '12px' }}
+              >
+                ✕
+              </button>
+            )}
           </div>
+          {/* Search suggestions dropdown */}
+          {searchQuery && (
+            <div className="absolute top-full left-0 mt-1 bg-bloomberg-panel border border-bloomberg-border rounded max-w-md w-full z-10">
+              {watchedSymbols
+                .filter(s => s.toUpperCase().includes(searchQuery.toUpperCase()))
+                .slice(0, 5)
+                .map(symbol => (
+                  <div
+                    key={symbol}
+                    className="px-3 py-2 hover:bg-bloomberg-secondary cursor-pointer text-white"
+                    style={{ fontSize: '12px' }}
+                    onClick={() => {
+                      setSelectedStock(symbol);
+                      setSearchQuery('');
+                    }}
+                  >
+                    <span className="text-bloomberg-orange font-bold">{symbol}</span>
+                    {stockData[symbol]?.name && (
+                      <span className="text-gray-400 ml-2">{stockData[symbol].name}</span>
+                    )}
+                  </div>
+                ))}
+              {watchedSymbols.filter(s => s.toUpperCase().includes(searchQuery.toUpperCase())).length === 0 && (
+                <div className="px-3 py-2 text-gray-400" style={{ fontSize: '12px' }}>
+                  No matching symbols in watchlist
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Stock Grid */}
@@ -290,7 +355,7 @@ const BloombergSimple = () => {
                       {data.marketCap && (
                         <div className="flex justify-between text-gray-300">
                           <span>Market Cap:</span>
-                          <span className="text-white font-mono">{formatters.marketCap(data.marketCap * 1000000)}</span>
+                          <span className="text-white font-mono">{formatters.marketCap(data.marketCap)}</span>
                         </div>
                       )}
                       {data.pe && (
@@ -308,7 +373,7 @@ const BloombergSimple = () => {
         </div>
 
         {/* Selected Stock Details */}
-        {selectedStock && getStockData(selectedStock) && (
+        {selectedStock && getStockData(selectedStock).price && (
           <div className="mt-8 bg-bloomberg-panel border border-bloomberg-border rounded p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-bloomberg-orange font-bold" style={{ fontSize: '18px' }}>
@@ -388,7 +453,7 @@ const BloombergSimple = () => {
                   {getStockData(selectedStock).marketCap && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">Market Cap:</span>
-                      <span className="text-white font-mono">{formatters.marketCap(getStockData(selectedStock).marketCap * 1000000)}</span>
+                      <span className="text-white font-mono">{formatters.marketCap(getStockData(selectedStock).marketCap)}</span>
                     </div>
                   )}
                   {getStockData(selectedStock).pe && (

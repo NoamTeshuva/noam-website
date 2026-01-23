@@ -21,6 +21,13 @@ export const twelveDataAPI = {
         { cache: "no-store" }
       );
 
+      // Check for rate limit before parsing (429 may not have valid JSON)
+      if (response.status === 429) {
+        handleTDResponse(response, null);
+        const timeRemaining = getTimeUntilReset();
+        throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+      }
+
       // Increment API call counter (only for successful requests)
       if (response.ok) {
         incrementAPICallCount(`quote:${symbol}`);
@@ -32,7 +39,7 @@ export const twelveDataAPI = {
 
       const data = await response.json();
 
-      // Check for rate limit error in response
+      // Check for rate limit error in response body
       if (handleTDResponse(response, data)) {
         const timeRemaining = getTimeUntilReset();
         throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
@@ -72,6 +79,73 @@ export const twelveDataAPI = {
     }
   },
 
+  // Get statistics/fundamentals data (P/E, EPS, Beta, Market Cap)
+  getStatistics: async (symbol) => {
+    // Check if TD API is exhausted
+    if (isTDExhausted()) {
+      const timeRemaining = getTimeUntilReset();
+      console.warn(`⏸️ [TD API] Skipping ${symbol} statistics - exhausted (resets in ${timeRemaining})`);
+      throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+    }
+
+    try {
+      const response = await fetch(
+        `${TWELVE_DATA_API_BASE}/statistics?symbol=${encodeURIComponent(symbol)}`,
+        { cache: "no-store" }
+      );
+
+      // Check for rate limit before parsing (429 may not have valid JSON)
+      if (response.status === 429) {
+        handleTDResponse(response, null);
+        const timeRemaining = getTimeUntilReset();
+        throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+      }
+
+      // Increment API call counter (only for successful requests)
+      if (response.ok) {
+        incrementAPICallCount(`statistics:${symbol}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(`Statistics fetch failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Check for rate limit error in response body
+      if (handleTDResponse(response, data)) {
+        const timeRemaining = getTimeUntilReset();
+        throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+      }
+
+      if (data.code === 400 || data.status === 'error') {
+        throw new Error(data.message || 'Statistics data unavailable');
+      }
+
+      // Parse statistics data
+      const stats = data.statistics || {};
+      const valuations = stats.valuations_metrics || {};
+      const stock = stats.stock_statistics || {};
+
+      return {
+        symbol: data.symbol,
+        marketCap: parseFloat(valuations.market_capitalization) || null,
+        pe: parseFloat(valuations.trailing_pe) || null,
+        forwardPe: parseFloat(valuations.forward_pe) || null,
+        eps: parseFloat(stock.diluted_eps_ttm) || null,
+        beta: parseFloat(stock.beta) || null,
+        week52High: parseFloat(stock['52_week_high']) || null,
+        week52Low: parseFloat(stock['52_week_low']) || null,
+        dividendYield: parseFloat(stock.dividend_yield) || null,
+        isRealData: true,
+        source: 'Twelve Data Statistics'
+      };
+    } catch (error) {
+      console.error('Twelve Data statistics error:', error);
+      throw error;
+    }
+  },
+
   // Get time series data (for intraday/volume calculations)
   getTimeSeries: async (symbol, interval = '1min', outputsize = '1') => {
     // Check if TD API is exhausted
@@ -87,6 +161,13 @@ export const twelveDataAPI = {
         { cache: "no-store" }
       );
 
+      // Check for rate limit before parsing (429 may not have valid JSON)
+      if (response.status === 429) {
+        handleTDResponse(response, null);
+        const timeRemaining = getTimeUntilReset();
+        throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
+      }
+
       // Increment API call counter (only for successful requests)
       if (response.ok) {
         incrementAPICallCount(`time_series:${symbol}`);
@@ -98,7 +179,7 @@ export const twelveDataAPI = {
 
       const data = await response.json();
 
-      // Check for rate limit error in response
+      // Check for rate limit error in response body
       if (handleTDResponse(response, data)) {
         const timeRemaining = getTimeUntilReset();
         throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
