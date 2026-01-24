@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Package manager files
+package-lock.json
+
+# Cloudflare
+.wrangler/
+
+# Claude Code logs
+.claude/session-changes*.log

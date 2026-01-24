@@ -70,18 +70,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bloomberg-primary">
-      <div className="max-w-md w-full mx-4">
-        <div className="bg-bloomberg-panel border border-bloomberg-border rounded-terminal-lg p-8 shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-bloomberg-primary px-4">
+      <div className="max-w-md w-full">
+        <div className="bg-bloomberg-panel border border-bloomberg-border rounded-terminal-lg p-6 sm:p-8 shadow-2xl">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-bloomberg-orange font-bloomberg-sans mb-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-bloomberg-orange font-bloomberg-sans mb-2">
               BLOOMBERG WANNABE
             </h1>
             <p className="text-bloomberg-text-muted text-terminal-sm">
               Terminal Access Required
             </p>
           </div>
-          
+
           <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
             <div>
               <label className="block text-bloomberg-text-secondary text-terminal-sm mb-2">
@@ -91,9 +91,9 @@ export default function Login() {
                 name="username"
                 type="text"
                 autoComplete="off"
-                className="w-full bg-bloomberg-input-bg border border-bloomberg-input-border 
+                className="w-full bg-bloomberg-input-bg border border-bloomberg-input-border
                          text-bloomberg-text-primary placeholder-bloomberg-input-placeholder
-                         font-bloomberg-mono text-terminal-base px-3 py-2 rounded-terminal
+                         font-bloomberg-mono text-base sm:text-terminal-base px-3 py-3 sm:py-2 rounded-terminal
                          focus:outline-none focus:border-bloomberg-input-focus focus:ring-1 focus:ring-bloomberg-input-focus
                          transition-colors duration-200"
                 placeholder="Enter username"
@@ -101,7 +101,7 @@ export default function Login() {
                 onChange={e => setUser(e.target.value)}
               />
             </div>
-            
+
             <div>
               <label className="block text-bloomberg-text-secondary text-terminal-sm mb-2">
                 Password
@@ -110,9 +110,9 @@ export default function Login() {
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                className="w-full bg-bloomberg-input-bg border border-bloomberg-input-border 
+                className="w-full bg-bloomberg-input-bg border border-bloomberg-input-border
                          text-bloomberg-text-primary placeholder-bloomberg-input-placeholder
-                         font-bloomberg-mono text-terminal-base px-3 py-2 rounded-terminal
+                         font-bloomberg-mono text-base sm:text-terminal-base px-3 py-3 sm:py-2 rounded-terminal
                          focus:outline-none focus:border-bloomberg-input-focus focus:ring-1 focus:ring-bloomberg-input-focus
                          transition-colors duration-200"
                 placeholder="Enter password"

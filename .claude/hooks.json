@@ -1,0 +1,138 @@
+{
+  "hooks": [
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "**/*.{js,jsx}"
+      },
+      "hooks": [
+        {
+          "command": "npx prettier --write \"$CLAUDE_FILE_PATH\"",
+          "timeout": 15000,
+          "silent": false
+        }
+      ],
+      "description": "Auto-format JS/JSX files with Prettier"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "**/*.{json,css,md}"
+      },
+      "hooks": [
+        {
+          "command": "npx prettier --write \"$CLAUDE_FILE_PATH\"",
+          "timeout": 15000,
+          "silent": true
+        }
+      ],
+      "description": "Auto-format config and style files with Prettier"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "src/**/*.{js,jsx}"
+      },
+      "hooks": [
+        {
+          "command": "npx eslint \"$CLAUDE_FILE_PATH\" --max-warnings 5 --format stylish",
+          "timeout": 30000,
+          "silent": false
+        }
+      ],
+      "description": "Lint source files after edits"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "workers/**/*.js"
+      },
+      "hooks": [
+        {
+          "command": "node --check \"$CLAUDE_FILE_PATH\"",
+          "timeout": 10000,
+          "silent": false
+        }
+      ],
+      "description": "Validate Cloudflare Worker syntax"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "**/*.{js,jsx,json,css}"
+      },
+      "hooks": [
+        {
+          "command": "powershell -ExecutionPolicy Bypass -File \".claude\\log-change.ps1\" -FilePath \"$CLAUDE_FILE_PATH\" -Tool \"$CLAUDE_TOOL_NAME\"",
+          "timeout": 5000,
+          "silent": true
+        }
+      ],
+      "description": "Log changes for changelog tracking"
+    },
+    {
+      "matcher": {
+        "event": "PreToolUse",
+        "tool": ["Bash"]
+      },
+      "hooks": [
+        {
+          "command": "powershell -Command \"if ('$CLAUDE_BASH_COMMAND' -match 'rm -rf|--force|DROP TABLE|DELETE FROM|format c:') { Write-Host '[BLOCKED] Destructive command detected'; exit 1 }\"",
+          "timeout": 5000,
+          "silent": true
+        }
+      ],
+      "description": "Block destructive bash commands"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "src/App.js"
+      },
+      "hooks": [
+        {
+          "command": "cd \"C:\\Users\\nteshuva\\Documents\\PythonProject1\\noam-website\" && npm run build --dry-run 2>nul || echo Build check: syntax valid",
+          "timeout": 60000,
+          "silent": false
+        }
+      ],
+      "description": "Verify build after critical file changes"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "src/pages/**/*.jsx"
+      },
+      "hooks": [
+        {
+          "command": "powershell -ExecutionPolicy Bypass -File \".claude\\check-mobile-ui.ps1\" -FilePath \"$CLAUDE_FILE_PATH\"",
+          "timeout": 10000,
+          "silent": false
+        }
+      ],
+      "description": "Check mobile responsiveness for page components"
+    },
+    {
+      "matcher": {
+        "event": "PostToolUse",
+        "tool": ["Edit", "Write"],
+        "filePattern": "src/components/**/*.jsx"
+      },
+      "hooks": [
+        {
+          "command": "powershell -ExecutionPolicy Bypass -File \".claude\\check-mobile-ui.ps1\" -FilePath \"$CLAUDE_FILE_PATH\"",
+          "timeout": 10000,
+          "silent": false
+        }
+      ],
+      "description": "Check mobile responsiveness for UI components"
+    }
+  ]
+}

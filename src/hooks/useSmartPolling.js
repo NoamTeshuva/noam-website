@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { twelveDataAPI } from '../utils/api';
+import { twelveDataAPI, cachedTwelveDataAPI } from '../utils/api';
+import { isMarketOpen as checkMarketStatus } from '../utils/marketHours';
+import { getCacheStats } from '../services/cacheManager';
 
 export const useSmartPolling = (symbols) => {
   const [stockData, setStockData] = useState({});
@@ -15,33 +17,88 @@ export const useSmartPolling = (symbols) => {
 
   // Check if US market is currently open (NYSE hours)
   const checkMarketHours = () => {
-    const now = new Date();
-
-    // Convert to Eastern Time
-    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    const day = etTime.getDay(); // 0 = Sunday, 6 = Saturday
-    const hours = etTime.getHours();
-    const minutes = etTime.getMinutes();
-    const totalMinutes = hours * 60 + minutes;
-
-    // Market hours: Monday-Friday, 9:30 AM - 4:00 PM ET
-    const isWeekday = day >= 1 && day <= 5;
-    const marketOpen = 9 * 60 + 30; // 9:30 AM in minutes
-    const marketClose = 16 * 60; // 4:00 PM in minutes
-    const isDuringMarketHours = totalMinutes >= marketOpen && totalMinutes < marketClose;
-
-    const marketIsOpen = isWeekday && isDuringMarketHours;
+    const marketIsOpen = checkMarketStatus();
     setIsMarketOpen(marketIsOpen);
 
+    const etTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     console.log(`🕐 Market status: ${marketIsOpen ? 'OPEN' : 'CLOSED'} (ET: ${etTime.toLocaleTimeString()})`);
 
     return marketIsOpen;
   };
 
+  // Load cached data instantly on mount
+  const loadCachedData = (symbolsList) => {
+    const cachedStockData = {};
+    let hasAnyCachedData = false;
+
+    symbolsList.forEach(symbol => {
+      const cachedQuote = cachedTwelveDataAPI.getCachedQuote(symbol);
+      const cachedStats = cachedTwelveDataAPI.getCachedStatistics(symbol);
+
+      if (cachedQuote || cachedStats) {
+        hasAnyCachedData = true;
+        cachedStockData[symbol] = {
+          symbol,
+          // Quote data
+          ...(cachedQuote || {}),
+          // Statistics data
+          ...(cachedStats || {}),
+          // Mark as cached
+          isLoading: false,
+          usingCachedData: true,
+          _cached: true,
+          _stale: cachedQuote?._stale || cachedStats?._stale || false,
+          dataSource: cachedQuote ? 'Twelve Data (Cached)' : 'No Data',
+          lastUpdated: cachedQuote?.lastUpdated || cachedStats?.lastUpdated || new Date()
+        };
+        console.log(`📦 Loaded cached data for ${symbol}`, {
+          hasQuote: !!cachedQuote,
+          hasStats: !!cachedStats,
+          isStale: cachedQuote?._stale || cachedStats?._stale
+        });
+      }
+    });
+
+    if (hasAnyCachedData) {
+      setStockData(cachedStockData);
+      setIsLoading(false); // Show cached data immediately
+      console.log(`📦 Loaded ${Object.keys(cachedStockData).length} symbols from cache`, getCacheStats());
+    }
+
+    return hasAnyCachedData;
+  };
+
   // Fetch real stock data using Twelve Data API (via Cloudflare Worker)
-  const fetchRealQuoteData = async (symbol) => {
+  // Uses cache-first strategy for optimal performance
+  const fetchRealQuoteData = async (symbol, { skipCache = false } = {}) => {
     try {
-      const quote = await twelveDataAPI.getQuote(symbol);
+      // Check if we have fresh cache and can skip the API call
+      if (!skipCache && cachedTwelveDataAPI.hasFreshCache(symbol, 'quote')) {
+        const cached = cachedTwelveDataAPI.getCachedQuote(symbol);
+        if (cached && cached.price) {
+          console.log(`⚡ Using fresh cache for ${symbol} (age: ${Math.round(cached._cacheAge / 1000)}s)`);
+          return {
+            symbol: cached.symbol,
+            price: cached.price,
+            change: cached.change,
+            changePercent: cached.changePercent,
+            high: cached.high,
+            low: cached.low,
+            open: cached.open,
+            previousClose: cached.previousClose,
+            volume: cached.volume,
+            timestamp: Date.now(),
+            isRealData: true,
+            source: 'Twelve Data (Cached)',
+            _cached: true,
+            _stale: false,
+            _cacheAge: cached._cacheAge
+          };
+        }
+      }
+
+      // Use cached API which implements stale-while-revalidate
+      const quote = await cachedTwelveDataAPI.getQuote(symbol, { skipCache });
 
       if (quote && quote.price) {
         return {
@@ -56,7 +113,11 @@ export const useSmartPolling = (symbols) => {
           volume: quote.volume,
           timestamp: Date.now(),
           isRealData: true,
-          source: 'Twelve Data'
+          source: quote._cached ? 'Twelve Data (Cached)' : 'Twelve Data',
+          _cached: quote._cached || false,
+          _stale: quote._stale || false,
+          _offline: quote._offline || false,
+          _cacheAge: quote._cacheAge
         };
       }
     } catch (error) {
@@ -69,14 +130,32 @@ export const useSmartPolling = (symbols) => {
   };
 
   // Fetch fundamentals/statistics data (P/E, EPS, Beta, Market Cap)
+  // Uses cache-first strategy - statistics rarely change
   const fetchFundamentals = async (symbol) => {
-    // Skip if already fetched this session
+    // Skip if already fetched this session (with fresh cache)
     if (fundamentalsFetchedRef.current.has(symbol)) {
+      // But return cached data if available
+      const cached = cachedTwelveDataAPI.getCachedStatistics(symbol);
+      if (cached) {
+        return {
+          marketCap: cached.marketCap,
+          pe: cached.pe,
+          forwardPe: cached.forwardPe,
+          eps: cached.eps,
+          beta: cached.beta,
+          week52High: cached.week52High,
+          week52Low: cached.week52Low,
+          dividendYield: cached.dividendYield,
+          _cached: true,
+          _stale: cached._stale
+        };
+      }
       return null;
     }
 
     try {
-      const stats = await twelveDataAPI.getStatistics(symbol);
+      // Use cached API for statistics (long TTL since data changes infrequently)
+      const stats = await cachedTwelveDataAPI.getStatistics(symbol);
 
       if (stats) {
         fundamentalsFetchedRef.current.add(symbol);
@@ -88,7 +167,9 @@ export const useSmartPolling = (symbols) => {
           beta: stats.beta,
           week52High: stats.week52High,
           week52Low: stats.week52Low,
-          dividendYield: stats.dividendYield
+          dividendYield: stats.dividendYield,
+          _cached: stats._cached || false,
+          _stale: stats._stale || false
         };
       }
     } catch (error) {
@@ -96,21 +177,40 @@ export const useSmartPolling = (symbols) => {
       console.warn(`Statistics fetch failed for ${symbol}:`, error.message);
       // Mark as fetched to avoid repeated failures
       fundamentalsFetchedRef.current.add(symbol);
+
+      // Return cached data on error (offline support)
+      const cached = cachedTwelveDataAPI.getCachedStatistics(symbol);
+      if (cached) {
+        console.log(`📦 Using cached statistics for ${symbol} after error`);
+        return {
+          marketCap: cached.marketCap,
+          pe: cached.pe,
+          forwardPe: cached.forwardPe,
+          eps: cached.eps,
+          beta: cached.beta,
+          week52High: cached.week52High,
+          week52Low: cached.week52Low,
+          dividendYield: cached.dividendYield,
+          _cached: true,
+          _stale: true,
+          _offline: true
+        };
+      }
     }
 
     return null;
   };
 
   // Smart data fetching strategy
-  const fetchStockData = async (symbol, fetchFundamentalsData = false) => {
+  const fetchStockData = async (symbol, fetchFundamentalsData = false, forceRefresh = false) => {
     pendingFetchesRef.current++;
 
     try {
       // Get existing data
       const existing = stockData[symbol] || {};
 
-      // Always fetch real-time quote
-      const quote = await fetchRealQuoteData(symbol);
+      // Fetch quote (respects cache unless forceRefresh)
+      const quote = await fetchRealQuoteData(symbol, { skipCache: forceRefresh });
 
       // Fetch fundamentals on first load (or if requested)
       let fundamentals = null;
@@ -151,7 +251,14 @@ export const useSmartPolling = (symbols) => {
 
         // Add data source indicators
         isRealData: quote?.isRealData || false,
-        dataSource: quote?.source || 'No Data'
+        dataSource: quote?.source || 'No Data',
+
+        // Add cache metadata
+        _cached: quote?._cached || false,
+        _stale: quote?._stale || false,
+        _offline: quote?._offline || false,
+        _cacheAge: quote?._cacheAge,
+        usingCachedData: quote?._cached || quote?._stale || quote?._offline || false
       };
 
       setStockData(prev => ({
@@ -220,13 +327,18 @@ export const useSmartPolling = (symbols) => {
     if (!symbols || symbols.length === 0) return;
 
     // Reset state for new symbol list
-    setIsLoading(true);
     initialLoadCompleteRef.current = false;
     pendingFetchesRef.current = 0;
 
     // Clear existing intervals
     Object.values(intervalsRef.current).forEach(clearInterval);
     intervalsRef.current = {};
+
+    // PHASE 1: Load cached data instantly (before any API calls)
+    const hasCachedData = loadCachedData(symbols);
+    if (!hasCachedData) {
+      setIsLoading(true); // Only show loading if no cache
+    }
 
     // Check market status every minute
     const startPolling = (isInitialLoad = false) => {
@@ -323,7 +435,12 @@ export const useSmartPolling = (symbols) => {
     error,
     isMarketOpen,
     refreshSymbol: (symbol) => fetchStockData(symbol),
-    refreshAll: () => symbols?.forEach(fetchStockData)
+    refreshAll: () => symbols?.forEach(symbol => fetchStockData(symbol)),
+    // Force refresh bypasses cache completely
+    forceRefreshSymbol: (symbol) => fetchStockData(symbol, true),
+    forceRefreshAll: () => symbols?.forEach(symbol => fetchStockData(symbol, true)),
+    // Cache statistics for debugging
+    getCacheStats
   };
 };
 

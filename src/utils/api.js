@@ -1,5 +1,6 @@
 import { isTDExhausted, handleTDResponse, getTimeUntilReset } from './rateLimitManager';
 import { incrementAPICallCount } from './apiCallCounter';
+import { cacheFirst, setInCache, getFromCache, hasFreshCache } from '../services/cacheManager';
 
 // Twelve Data API configuration (via Cloudflare Worker proxy)
 const TWELVE_DATA_API_BASE = process.env.REACT_APP_WORKER_URL || '/api';
@@ -247,5 +248,136 @@ export const withErrorHandling = async (apiCall, fallbackValue = null) => {
   } catch (error) {
     console.error('API call failed:', error);
     return fallbackValue;
+  }
+};
+
+/**
+ * Cache-first API functions
+ * Uses stale-while-revalidate pattern for optimal performance
+ */
+export const cachedTwelveDataAPI = {
+  /**
+   * Get quote with cache-first strategy
+   * Returns cached data immediately if available, refreshes in background if stale
+   * @param {string} symbol - Stock symbol
+   * @param {Object} options - Options
+   * @param {boolean} options.skipCache - Skip cache and force fresh fetch
+   * @returns {Promise<Object>} Quote data with cache metadata
+   */
+  getQuote: async (symbol, { skipCache = false } = {}) => {
+    // If skipCache is true, bypass cache entirely
+    if (skipCache) {
+      const freshData = await twelveDataAPI.getQuote(symbol);
+      setInCache(symbol, 'quote', freshData);
+      return { ...freshData, _cached: false, _stale: false, _offline: false };
+    }
+
+    // Use cache-first strategy
+    return cacheFirst(symbol, 'quote', () => twelveDataAPI.getQuote(symbol));
+  },
+
+  /**
+   * Get statistics with cache-first strategy
+   * Statistics change infrequently, so longer TTLs are used
+   * @param {string} symbol - Stock symbol
+   * @param {Object} options - Options
+   * @param {boolean} options.skipCache - Skip cache and force fresh fetch
+   * @returns {Promise<Object>} Statistics data with cache metadata
+   */
+  getStatistics: async (symbol, { skipCache = false } = {}) => {
+    if (skipCache) {
+      const freshData = await twelveDataAPI.getStatistics(symbol);
+      setInCache(symbol, 'statistics', freshData);
+      return { ...freshData, _cached: false, _stale: false, _offline: false };
+    }
+
+    return cacheFirst(symbol, 'statistics', () => twelveDataAPI.getStatistics(symbol));
+  },
+
+  /**
+   * Get time series with cache-first strategy
+   * @param {string} symbol - Stock symbol
+   * @param {string} interval - Time interval (default: '1min')
+   * @param {string} outputsize - Number of data points (default: '1')
+   * @param {Object} options - Options
+   * @param {boolean} options.skipCache - Skip cache and force fresh fetch
+   * @returns {Promise<Array>} Time series data with cache metadata
+   */
+  getTimeSeries: async (symbol, interval = '1min', outputsize = '1', { skipCache = false } = {}) => {
+    const cacheKey = `${symbol}_${interval}_${outputsize}`;
+
+    if (skipCache) {
+      const freshData = await twelveDataAPI.getTimeSeries(symbol, interval, outputsize);
+      setInCache(cacheKey, 'timeSeries', freshData);
+      return { data: freshData, _cached: false, _stale: false, _offline: false };
+    }
+
+    const result = await cacheFirst(cacheKey, 'timeSeries', () =>
+      twelveDataAPI.getTimeSeries(symbol, interval, outputsize)
+    );
+
+    // Time series returns array, so handle differently
+    if (Array.isArray(result)) {
+      return { data: result, _cached: false, _stale: false, _offline: false };
+    }
+
+    // If result has cache metadata, extract the data array
+    const { _cached, _stale, _offline, _cacheAge, _error, ...data } = result;
+    return {
+      data: Array.isArray(data) ? data : (data.data || []),
+      _cached,
+      _stale,
+      _offline,
+      _cacheAge,
+      _error
+    };
+  },
+
+  /**
+   * Check if quote data exists in cache (fresh or stale)
+   * @param {string} symbol - Stock symbol
+   * @returns {Object|null} Cached data or null
+   */
+  getCachedQuote: (symbol) => {
+    const cached = getFromCache(symbol, 'quote');
+    if (cached) {
+      return {
+        ...cached.data,
+        _cached: true,
+        _stale: cached.isStale,
+        _cacheAge: cached.age,
+        _isFresh: cached.isFresh
+      };
+    }
+    return null;
+  },
+
+  /**
+   * Check if statistics data exists in cache
+   * @param {string} symbol - Stock symbol
+   * @returns {Object|null} Cached data or null
+   */
+  getCachedStatistics: (symbol) => {
+    const cached = getFromCache(symbol, 'statistics');
+    if (cached) {
+      return {
+        ...cached.data,
+        _cached: true,
+        _stale: cached.isStale,
+        _cacheAge: cached.age,
+        _isFresh: cached.isFresh
+      };
+    }
+    return null;
+  },
+
+  /**
+   * Check if we have fresh cached data (no API call needed)
+   * @param {string} symbol - Stock symbol
+   * @param {string} dataType - Type of data ('quote' or 'statistics')
+   * @returns {boolean} True if fresh cache exists
+   */
+  hasFreshCache: (symbol, dataType = 'quote') => {
+    return hasFreshCache(symbol, dataType);
   }
 };

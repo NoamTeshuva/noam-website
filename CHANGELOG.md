@@ -4,6 +4,33 @@ All notable changes to the Financial Market Terminal project will be documented 
 
 ## [Unreleased]
 
+### Added
+- **Client-side caching architecture**: New localStorage-based cache with market-hours-aware TTLs
+  - `src/services/cacheManager.js`: Central cache manager with stale-while-revalidate pattern
+  - `src/utils/marketHours.js`: Shared utility for checking US market hours
+  - `src/services/cacheWarmer.js`: Optional cache preloading with staggered requests
+- **Cache-first API wrappers**: `cachedTwelveDataAPI` in `api.js` for automatic caching
+- **Instant page load**: Cached data displays immediately on page refresh
+- **Offline support**: App shows stale cached data when network is unavailable
+- **Cache metadata**: Data includes `_cached`, `_stale`, `_offline` flags for UI indicators
+- **Cache statistics**: `getCacheStats()` function for debugging cache state
+
+### Changed
+- **Dynamic edge cache TTLs**: Worker now uses market-aware TTLs
+  - Quotes: 60s (market open) / 1hr (closed)
+  - Statistics: 1hr (open) / 24hr (closed)
+- **Stale-while-revalidate headers**: Added to Cloudflare Worker responses
+- **useSmartPolling**: Now loads cached data instantly before fetching fresh data
+- **Expected API reduction**: ~60-70% fewer calls (from ~300-400/day to ~100-150/day)
+- **Mobile-responsive UI**: Complete mobile interface overhaul
+  - Header: Hamburger menu on mobile with dropdown for all actions
+  - Sidebar: Full-width on mobile (`w-full sm:w-80`), improved overlay behavior
+  - Stock grid: Responsive columns (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`)
+  - Touch targets: Increased button/input sizes on mobile (min 44px)
+  - Peers panel: Optimized layout, hidden volume info on mobile
+  - Login page: Larger input fields for touch
+  - Status indicator: Compact version on mobile
+
 ### Security
 - **Server-side authentication**: Replaced hardcoded client-side credentials with secure Cloudflare Worker authentication
   - Added `/api/auth/login` endpoint with password hashing (SHA-256 with salt)

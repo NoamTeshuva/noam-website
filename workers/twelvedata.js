@@ -20,6 +20,82 @@ const loginAttempts = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const MAX_ATTEMPTS = 5;
 
+/**
+ * Check if US stock market is currently open
+ * Market hours: Monday-Friday, 9:30 AM - 4:00 PM ET
+ * @returns {boolean} True if market is open
+ */
+function checkMarketHours() {
+  const now = new Date();
+  // Convert to ET using manual offset (UTC-5 for EST, UTC-4 for EDT)
+  // For simplicity, we use a fixed offset; in production you'd want proper timezone handling
+  const etOffset = isDST(now) ? -4 : -5;
+  const etTime = new Date(now.getTime() + (etOffset * 60 + now.getTimezoneOffset()) * 60000);
+
+  const day = etTime.getDay(); // 0 = Sunday, 6 = Saturday
+  const hours = etTime.getHours();
+  const minutes = etTime.getMinutes();
+  const totalMinutes = hours * 60 + minutes;
+
+  // Market hours: Monday-Friday, 9:30 AM - 4:00 PM ET
+  const isWeekday = day >= 1 && day <= 5;
+  const marketOpen = 9 * 60 + 30; // 9:30 AM in minutes
+  const marketClose = 16 * 60; // 4:00 PM in minutes
+  const isDuringMarketHours = totalMinutes >= marketOpen && totalMinutes < marketClose;
+
+  return isWeekday && isDuringMarketHours;
+}
+
+/**
+ * Check if date is in Daylight Saving Time (US rules)
+ * DST starts second Sunday in March, ends first Sunday in November
+ */
+function isDST(date) {
+  const year = date.getUTCFullYear();
+
+  // Second Sunday in March
+  const marchStart = new Date(Date.UTC(year, 2, 1));
+  const dstStart = new Date(marchStart);
+  dstStart.setUTCDate(14 - marchStart.getUTCDay());
+  dstStart.setUTCHours(7); // 2 AM ET = 7 AM UTC
+
+  // First Sunday in November
+  const novStart = new Date(Date.UTC(year, 10, 1));
+  const dstEnd = new Date(novStart);
+  dstEnd.setUTCDate(7 - novStart.getUTCDay());
+  dstEnd.setUTCHours(6); // 2 AM ET = 6 AM UTC (still in DST)
+
+  return date >= dstStart && date < dstEnd;
+}
+
+/**
+ * Get appropriate cache TTL based on market status and endpoint
+ * @param {string} endpoint - API endpoint (e.g., "/quote", "/statistics")
+ * @returns {Object} { maxAge: number, staleWhileRevalidate: number }
+ */
+function getCacheTTL(endpoint) {
+  const marketOpen = checkMarketHours();
+
+  // TTL configuration (in seconds)
+  const ttlConfig = {
+    '/quote': {
+      marketOpen: { maxAge: 60, swr: 120 },      // 1 min fresh, 2 min stale-ok
+      marketClosed: { maxAge: 3600, swr: 7200 }  // 1 hr fresh, 2 hr stale-ok
+    },
+    '/statistics': {
+      marketOpen: { maxAge: 3600, swr: 7200 },     // 1 hr fresh, 2 hr stale-ok
+      marketClosed: { maxAge: 86400, swr: 172800 } // 24 hr fresh, 48 hr stale-ok
+    },
+    '/time_series': {
+      marketOpen: { maxAge: 60, swr: 120 },      // 1 min fresh, 2 min stale-ok
+      marketClosed: { maxAge: 3600, swr: 7200 }  // 1 hr fresh, 2 hr stale-ok
+    }
+  };
+
+  const config = ttlConfig[endpoint] || ttlConfig['/quote'];
+  return marketOpen ? config.marketOpen : config.marketClosed;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const { pathname, searchParams } = new URL(request.url);
@@ -367,6 +443,7 @@ async function handleFinnhubRequest(pathname, searchParams, env, ctx) {
 
 /**
  * Handle Twelve Data API requests
+ * Uses market-aware dynamic TTLs for optimal caching
  */
 async function handleTwelveDataRequest(pathname, searchParams, env, ctx) {
   const endpoint = pathname.replace("/api", ""); // "/quote" or "/time_series"
@@ -390,7 +467,10 @@ async function handleTwelveDataRequest(pathname, searchParams, env, ctx) {
     td.searchParams.set("outputsize", searchParams.get("outputsize") || "1");
   }
 
-  // 60s edge cache to stay well under free-tier limits (8 calls/min, 800/day)
+  // Get dynamic TTL based on market hours
+  const ttl = getCacheTTL(endpoint);
+  const isMarketOpen = checkMarketHours();
+
   const cache = caches.default;
   const cacheKey = new Request(td.toString(), {
     headers: { Accept: "application/json" }
@@ -422,24 +502,29 @@ async function handleTwelveDataRequest(pathname, searchParams, env, ctx) {
       });
     }
 
-    // Create cacheable response
+    // Create cacheable response with stale-while-revalidate
     resp = new Response(text, {
       status: 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
-        "cache-control": "public, max-age=60",
+        "cache-control": `public, max-age=${ttl.maxAge}, stale-while-revalidate=${ttl.swr}`,
         "access-control-allow-origin": "*",
         "access-control-allow-methods": "GET, OPTIONS",
-        "x-cache": "MISS"
+        "x-cache": "MISS",
+        "x-market-open": isMarketOpen ? "true" : "false",
+        "x-cache-ttl": String(ttl.maxAge)
       }
     });
 
     // Store in edge cache
     ctx.waitUntil(cache.put(cacheKey, resp.clone()));
+
+    console.log(`📊 TD cache MISS for ${symbol}${endpoint} (TTL: ${ttl.maxAge}s, market: ${isMarketOpen ? 'open' : 'closed'})`);
   } else {
-    // Add cache hit header
+    // Add cache hit headers
     const headers = new Headers(resp.headers);
     headers.set("x-cache", "HIT");
+    headers.set("x-market-open", isMarketOpen ? "true" : "false");
     resp = new Response(resp.body, {
       status: resp.status,
       headers: headers

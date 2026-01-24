@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle, LogOut } from 'lucide-react';
+import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle, LogOut, Menu, X } from 'lucide-react';
 import { useSmartPolling, formatters } from '../hooks/useSmartPolling';
 import WatchlistSidebar from '../components/WatchlistSidebar';
 import PeersPanel from '../components/PeersPanel';
@@ -19,6 +19,7 @@ const BloombergSimple = () => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'analysis'
   const [apiCounterState, setApiCounterState] = useState(getAPICounterState());
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Get watchlist symbols from store
   const { symbols: watchedSymbols } = useWatchlistStore();
@@ -106,25 +107,28 @@ const BloombergSimple = () => {
 
       {/* Bloomberg Terminal Header */}
       <div className="bg-bloomberg-header border-b border-bloomberg-border">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-6 w-6 text-bloomberg-orange" />
-                <h1 className="text-lg font-bold text-bloomberg-orange" style={{ fontSize: '18px' }}>
-                  BLOOMBERG TERMINAL
+            {/* Left side - Logo and status */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-bloomberg-orange" />
+                <h1 className="text-sm sm:text-lg font-bold text-bloomberg-orange">
+                  <span className="hidden sm:inline">BLOOMBERG TERMINAL</span>
+                  <span className="sm:hidden">TERMINAL</span>
                 </h1>
               </div>
-              <div className="flex items-center space-x-2 text-gray-300" style={{ fontSize: '12px' }}>
+              <div className="flex items-center space-x-1 sm:space-x-2 text-gray-300 text-xs">
                 <Activity className={`h-3 w-3 ${error ? 'text-bloomberg-status-error' : 'text-bloomberg-status-connected'}`} />
-                <span>{error ? 'ERROR' : 'LIVE'}</span>
+                <span className="hidden xs:inline">{error ? 'ERROR' : 'LIVE'}</span>
                 {lastUpdated && (
-                  <span className="text-gray-500">
+                  <span className="text-gray-500 hidden md:inline">
                     {lastUpdated.toLocaleTimeString()}
                   </span>
                 )}
               </div>
-              <div className="flex items-center space-x-2 text-gray-300" style={{ fontSize: '12px' }}>
+              {/* API counter - visible on tablet+ */}
+              <div className="hidden sm:flex items-center space-x-2 text-gray-300 text-xs">
                 <span className={`font-mono ${
                   apiCounterState.isAtLimit ? 'text-bloomberg-status-error' :
                   apiCounterState.isNearLimit ? 'text-yellow-500' :
@@ -137,8 +141,10 @@ const BloombergSimple = () => {
                 )}
               </div>
             </div>
-            <div className="flex items-center space-x-4 text-gray-300" style={{ fontSize: '12px' }}>
-              <button 
+
+            {/* Right side - Desktop buttons */}
+            <div className="hidden md:flex items-center space-x-4 text-gray-300 text-xs">
+              <button
                 onClick={() => setIsWatchlistOpen(!isWatchlistOpen)}
                 className="flex items-center space-x-1 hover:text-white transition-colors"
                 title="Open Watchlist"
@@ -148,7 +154,7 @@ const BloombergSimple = () => {
                 </svg>
                 <span>WATCHLIST ({watchedSymbols.length})</span>
               </button>
-              <button 
+              <button
                 onClick={refreshAll}
                 className="flex items-center space-x-1 hover:text-white transition-colors"
                 disabled={isLoading}
@@ -188,15 +194,90 @@ const BloombergSimple = () => {
                 <span>LOGOUT</span>
               </button>
             </div>
+
+            {/* Mobile menu button and quick actions */}
+            <div className="flex md:hidden items-center space-x-2">
+              <button
+                onClick={() => setIsWatchlistOpen(!isWatchlistOpen)}
+                className="p-2 text-gray-300 hover:text-white transition-colors"
+                title="Watchlist"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <button
+                onClick={refreshAll}
+                className="p-2 text-gray-300 hover:text-white transition-colors"
+                disabled={isLoading}
+                title="Refresh"
+              >
+                <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 text-gray-300 hover:text-white transition-colors"
+                title="Menu"
+              >
+                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile dropdown menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-2 pt-2 border-t border-bloomberg-border">
+              <div className="flex flex-col space-y-2 text-gray-300 text-sm">
+                {/* API Counter for mobile */}
+                <div className="flex items-center justify-between py-2 px-2 bg-bloomberg-panel rounded">
+                  <span className="text-gray-400">API Calls</span>
+                  <span className={`font-mono ${
+                    apiCounterState.isAtLimit ? 'text-bloomberg-status-error' :
+                    apiCounterState.isNearLimit ? 'text-yellow-500' :
+                    'text-gray-300'
+                  }`}>
+                    {apiCounterState.count}/{apiCounterState.limit}
+                  </span>
+                </div>
+                <button
+                  onClick={() => { testVolumeSpike(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center space-x-2 py-2 px-2 hover:bg-bloomberg-panel rounded transition-colors"
+                >
+                  <TestTube className="h-4 w-4" />
+                  <span>Test Notification</span>
+                </button>
+                <button
+                  onClick={() => { testRateLimit(); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center space-x-2 py-2 px-2 rounded transition-colors ${
+                    isTDExhausted() ? 'text-yellow-500' : 'hover:bg-bloomberg-panel'
+                  }`}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>{isTDExhausted() ? 'Disable Cache Mode' : 'Test Rate Limit'}</span>
+                </button>
+                <div className="flex items-center space-x-2 py-2 px-2">
+                  <Globe className="h-4 w-4" />
+                  <span>US MARKETS</span>
+                  <span className="text-bloomberg-status-connected">●</span>
+                </div>
+                <button
+                  onClick={() => { auth?.logout(); setIsMobileMenuOpen(false); }}
+                  className="flex items-center space-x-2 py-2 px-2 hover:bg-bloomberg-panel rounded transition-colors text-bloomberg-status-error"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
         {/* Search Bar */}
-        <div className="mb-6 relative">
-          <div className="flex items-center bg-bloomberg-panel border border-bloomberg-border rounded p-2 max-w-md">
+        <div className="mb-4 sm:mb-6 relative">
+          <div className="flex items-center bg-bloomberg-panel border border-bloomberg-border rounded p-2 w-full sm:max-w-md">
             <Search className="h-4 w-4 text-gray-400 mr-2" />
             <input
               type="text"
@@ -260,7 +341,7 @@ const BloombergSimple = () => {
         </div>
 
         {/* Stock Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {watchedSymbols.map((symbol) => {
             const data = getStockData(symbol);
             const isLoading = data.isLoading;
@@ -273,11 +354,10 @@ const BloombergSimple = () => {
                 key={symbol} 
                 onClick={() => setSelectedStock(symbol)}
                 className={`cursor-pointer transition-all duration-200 ${
-                  isSelected 
-                    ? 'bg-bloomberg-selected border-bloomberg-selected' 
+                  isSelected
+                    ? 'bg-bloomberg-selected border-bloomberg-selected'
                     : 'bg-bloomberg-panel hover:bg-bloomberg-secondary border-bloomberg-border'
-                } border-l-4 border-l-bloomberg-orange rounded-sm p-4`}
-                style={{ minHeight: '160px' }}
+                } border-l-4 border-l-bloomberg-orange rounded-sm p-3 sm:p-4 min-h-[140px] sm:min-h-[160px]`}
               >
                 {isLoading ? (
                   /* Loading State */
@@ -374,12 +454,12 @@ const BloombergSimple = () => {
 
         {/* Selected Stock Details */}
         {selectedStock && getStockData(selectedStock).price && (
-          <div className="mt-8 bg-bloomberg-panel border border-bloomberg-border rounded p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-bloomberg-orange font-bold" style={{ fontSize: '18px' }}>
+          <div className="mt-6 sm:mt-8 bg-bloomberg-panel border border-bloomberg-border rounded p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+              <h2 className="text-bloomberg-orange font-bold text-base sm:text-lg">
                 {selectedStock} {getStockData(selectedStock).exchange || 'US'} Equity
               </h2>
-              <div className="flex space-x-4" style={{ fontSize: '11px' }}>
+              <div className="flex space-x-3 sm:space-x-4 text-xs overflow-x-auto pb-1">
                 <span
                   onClick={() => setActiveTab('overview')}
                   className={`pb-1 font-bold cursor-pointer transition-colors ${
@@ -408,7 +488,7 @@ const BloombergSimple = () => {
             {/* Overview Tab Content */}
             {activeTab === 'overview' && (
             <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div>
                 <h3 className="text-gray-300 font-bold mb-2" style={{ fontSize: '13px' }}>
                   Price & Volume
@@ -514,11 +594,11 @@ const BloombergSimple = () => {
 
             {/* Company Info */}
             {(getStockData(selectedStock).industry || getStockData(selectedStock).sector) && (
-              <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
-                <h3 className="text-gray-300 font-bold mb-2" style={{ fontSize: '13px' }}>
+              <div className="mt-4 sm:mt-6 pt-4 border-t border-bloomberg-border-subtle">
+                <h3 className="text-gray-300 font-bold mb-2 text-sm">
                   Company Information
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ fontSize: '12px' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
                   {getStockData(selectedStock).industry && (
                     <div className="flex justify-between">
                       <span className="text-gray-400">Industry:</span>
@@ -548,13 +628,13 @@ const BloombergSimple = () => {
             )}
 
             {/* Peers Panel */}
-            <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
+            <div className="mt-4 sm:mt-6 pt-4 border-t border-bloomberg-border-subtle">
               <PeersPanel symbol={selectedStock} />
             </div>
 
             {/* Data Source Indicator */}
             <div className="mt-4 pt-2 border-t border-bloomberg-border-subtle">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs gap-2">
                 <div className="flex items-center space-x-2">
                   <div className={`w-2 h-2 rounded-full ${
                     getStockData(selectedStock).usingCachedData ? 'bg-yellow-500' :
@@ -592,8 +672,9 @@ const BloombergSimple = () => {
         )}
 
       {/* Status Indicator */}
-      <div className="fixed bottom-4 right-4 bg-bloomberg-status-connected text-black px-3 py-2 rounded text-xs font-bold">
-        Bloomberg Terminal ✓ Online
+      <div className="fixed bottom-2 right-2 sm:bottom-4 sm:right-4 bg-bloomberg-status-connected text-black px-2 py-1 sm:px-3 sm:py-2 rounded text-xs font-bold">
+        <span className="hidden sm:inline">Bloomberg Terminal ✓ Online</span>
+        <span className="sm:hidden">✓ Online</span>
       </div>
       </div>
     </div>

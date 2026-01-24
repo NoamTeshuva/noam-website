@@ -159,10 +159,10 @@ const PeersPanel = ({ symbol }) => {
   }
 
   return (
-    <div className="bg-bloomberg-panel border border-bloomberg-border rounded p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-2">
-          <h3 className="text-gray-300 font-bold" style={{ fontSize: '13px' }}>
+    <div className="bg-bloomberg-panel border border-bloomberg-border rounded p-3 sm:p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
+        <div className="flex items-center flex-wrap gap-2">
+          <h3 className="text-gray-300 font-bold text-xs sm:text-sm">
             Related Stocks
             <span className="ml-2 text-xs text-gray-500">
               ({peers.length} peers)
@@ -170,18 +170,18 @@ const PeersPanel = ({ symbol }) => {
           </h3>
           {usingCache && cacheReason === 'market_closed' && (
             <span className="text-xs text-gray-400 bg-gray-700/30 px-2 py-0.5 rounded">
-              🌙 Market Closed
+              Market Closed
             </span>
           )}
           {usingCache && cacheReason === 'fresh_cache' && (
             <span className="text-xs text-gray-400 bg-gray-700/30 px-2 py-0.5 rounded">
-              📋 Cached
+              Cached
             </span>
           )}
         </div>
         {loading && (
           <div className="flex items-center space-x-2">
-            <div className="w-24 bg-bloomberg-secondary rounded-full h-1.5">
+            <div className="w-20 sm:w-24 bg-bloomberg-secondary rounded-full h-1.5">
               <div
                 className="bg-bloomberg-orange h-1.5 rounded-full transition-all duration-300"
                 style={{ width: `${loadingProgress}%` }}
@@ -205,51 +205,51 @@ const PeersPanel = ({ symbol }) => {
           return (
             <div
               key={peerSymbol}
-              className="bg-bloomberg-secondary border border-bloomberg-border rounded p-3 hover:border-bloomberg-orange transition-all cursor-pointer"
+              className="bg-bloomberg-secondary border border-bloomberg-border rounded p-2 sm:p-3 hover:border-bloomberg-orange transition-all cursor-pointer"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 {/* Left: Symbol */}
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono font-bold text-bloomberg-orange" style={{ fontSize: '12px' }}>
+                <div className="min-w-0 flex-shrink-0">
+                  <div className="flex items-center space-x-1 sm:space-x-2">
+                    <span className="font-mono font-bold text-bloomberg-orange text-xs sm:text-sm">
                       {peerSymbol}
                     </span>
                     {isLoading && (
                       <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-400"></div>
                     )}
                     {hasError && (
-                      <span className="text-xs text-bloomberg-status-error">Error</span>
+                      <span className="text-xs text-bloomberg-status-error">Err</span>
                     )}
                   </div>
                 </div>
 
                 {/* Center: Price */}
-                <div className="flex-1 text-center">
+                <div className="flex-1 text-center min-w-0">
                   {isLoading ? (
-                    <div className="h-4 bg-bloomberg-background rounded w-16 mx-auto animate-pulse"></div>
+                    <div className="h-4 bg-bloomberg-background rounded w-12 sm:w-16 mx-auto animate-pulse"></div>
                   ) : hasError ? (
                     <span className="text-xs text-gray-500">N/A</span>
                   ) : (
-                    <span className="font-mono text-white font-bold" style={{ fontSize: '13px' }}>
+                    <span className="font-mono text-white font-bold text-xs sm:text-sm">
                       {formatters.price(data.price)}
                     </span>
                   )}
                 </div>
 
                 {/* Right: Change */}
-                <div className="flex-1 text-right">
+                <div className="flex-shrink-0 text-right">
                   {isLoading ? (
-                    <div className="h-4 bg-bloomberg-background rounded w-20 ml-auto animate-pulse"></div>
+                    <div className="h-4 bg-bloomberg-background rounded w-14 sm:w-20 ml-auto animate-pulse"></div>
                   ) : hasError ? (
                     <span className="text-xs text-gray-500">---</span>
                   ) : (
                     <div className="flex items-center justify-end space-x-1">
                       {isNeutral ? (
-                        <Minus className="h-3 w-3 text-bloomberg-data-neutral" />
+                        <Minus className="h-3 w-3 text-bloomberg-data-neutral hidden sm:block" />
                       ) : isPositive ? (
-                        <TrendingUp className="h-3 w-3 text-bloomberg-data-positive" />
+                        <TrendingUp className="h-3 w-3 text-bloomberg-data-positive hidden sm:block" />
                       ) : (
-                        <TrendingDown className="h-3 w-3 text-bloomberg-data-negative" />
+                        <TrendingDown className="h-3 w-3 text-bloomberg-data-negative hidden sm:block" />
                       )}
                       <span
                         className={`font-mono text-xs ${
@@ -268,9 +268,9 @@ const PeersPanel = ({ symbol }) => {
                 </div>
               </div>
 
-              {/* Volume (if loaded) */}
+              {/* Volume (if loaded) - hidden on mobile to save space */}
               {data && !hasError && data.volume && (
-                <div className="mt-1 flex justify-between text-xs text-gray-500">
+                <div className="mt-1 hidden sm:flex justify-between text-xs text-gray-500">
                   <span>Vol:</span>
                   <span className="font-mono">{formatters.volume(data.volume)}</span>
                 </div>
@@ -281,10 +281,11 @@ const PeersPanel = ({ symbol }) => {
       </div>
 
       {/* Source indicator */}
-      <div className="mt-3 pt-2 border-t border-bloomberg-border-subtle text-xs text-gray-500 flex items-center justify-between">
-        <span>Peers: Finnhub • Quotes: Twelve Data</span>
+      <div className="mt-3 pt-2 border-t border-bloomberg-border-subtle text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <span className="hidden sm:inline">Peers: Finnhub • Quotes: Twelve Data</span>
+        <span className="sm:hidden">Finnhub / Twelve Data</span>
         {loading && (
-          <span className="text-bloomberg-orange animate-pulse">Loading quotes...</span>
+          <span className="text-bloomberg-orange animate-pulse">Loading...</span>
         )}
       </div>
     </div>

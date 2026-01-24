@@ -48,13 +48,13 @@ const WatchlistSidebar = ({ isOpen, onToggle }) => {
 
   if (!isOpen) {
     return (
-      <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-40">
+      <div className="fixed left-2 sm:left-4 top-1/2 transform -translate-y-1/2 z-40">
         <button
           onClick={onToggle}
           className={sidebarStyles.toggleButton}
           aria-label="Open watchlist"
         >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-5 h-5 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
           </svg>
         </button>
