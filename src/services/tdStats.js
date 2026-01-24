@@ -457,6 +457,20 @@ export const calculateReturns = (bars, currentPrice) => {
  * @returns {Object} - Moving average values and signals
  */
 export const calculateMovingAverages = (bars, currentPrice) => {
+  if (!bars || bars.length === 0) {
+    return {
+      sma20: null,
+      sma50: null,
+      sma200: null,
+      priceVsSma20: null,
+      priceVsSma50: null,
+      priceVsSma200: null,
+      crossoverSignal: null,
+      trend: 'NEUTRAL',
+      lowConfidence: true,
+    };
+  }
+
   const closes = bars.map((b) => b.close);
 
   // Calculate SMAs
