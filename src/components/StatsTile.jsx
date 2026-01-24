@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { buildStats } from '../services/tdStats';
-import { TrendingUp, TrendingDown, Activity, BarChart3 } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  BarChart3,
+  ArrowUpCircle,
+  ArrowDownCircle,
+} from 'lucide-react';
 
 /**
  * StatsTile - Display technical indicators and stats for a symbol
@@ -88,9 +95,7 @@ const StatsTile = ({ symbol }) => {
             TECHNICAL ANALYSIS
           </h3>
         </div>
-        <div className="text-center py-8 text-bloomberg-status-error">
-          {error}
-        </div>
+        <div className="text-center py-8 text-bloomberg-status-error">{error}</div>
       </div>
     );
   }
@@ -125,6 +130,56 @@ const StatsTile = ({ symbol }) => {
     return '';
   };
 
+  const getTrendColor = (trend) => {
+    switch (trend) {
+      case 'STRONG_BULLISH':
+        return 'text-bloomberg-data-positive';
+      case 'BULLISH':
+        return 'text-green-400';
+      case 'STRONG_BEARISH':
+        return 'text-bloomberg-data-negative';
+      case 'BEARISH':
+        return 'text-red-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  const getTrendLabel = (trend) => {
+    switch (trend) {
+      case 'STRONG_BULLISH':
+        return 'STRONG BULL';
+      case 'BULLISH':
+        return 'BULLISH';
+      case 'STRONG_BEARISH':
+        return 'STRONG BEAR';
+      case 'BEARISH':
+        return 'BEARISH';
+      default:
+        return 'NEUTRAL';
+    }
+  };
+
+  const getPriceVsMAColor = (pct) => {
+    if (pct === null) return 'text-gray-400';
+    if (pct > 0) return 'text-bloomberg-data-positive';
+    if (pct < 0) return 'text-bloomberg-data-negative';
+    return 'text-gray-400';
+  };
+
+  const getReturnColor = (ret) => {
+    if (ret === null || ret === undefined) return 'text-gray-500';
+    if (ret > 0) return 'text-bloomberg-data-positive';
+    if (ret < 0) return 'text-bloomberg-data-negative';
+    return 'text-gray-400';
+  };
+
+  const formatReturn = (ret) => {
+    if (ret === null || ret === undefined) return '---';
+    const sign = ret >= 0 ? '+' : '';
+    return `${sign}${ret.toFixed(2)}%`;
+  };
+
   return (
     <div className="bg-bloomberg-panel border border-bloomberg-border rounded p-6">
       {/* Header */}
@@ -135,11 +190,7 @@ const StatsTile = ({ symbol }) => {
             TECHNICAL ANALYSIS
           </h3>
         </div>
-        {stats.lowConfidence && (
-          <span className="text-xs text-yellow-500">
-            ⚠ Limited data
-          </span>
-        )}
+        {stats.lowConfidence && <span className="text-xs text-yellow-500">⚠ Limited data</span>}
       </div>
 
       {/* Rate Limit Warning Banner */}
@@ -162,15 +213,22 @@ const StatsTile = ({ symbol }) => {
           <div>
             <div className="text-gray-400 text-xs mb-1">PRICE & CHANGE</div>
             <div className="flex items-center space-x-3">
-              <span className="text-white font-mono text-2xl">
-                ${formatNumber(stats.price, 2)}
-              </span>
-              <div className={`flex items-center space-x-1 ${
-                stats.percentChange >= 0 ? 'text-bloomberg-data-positive' : 'text-bloomberg-data-negative'
-              }`}>
-                {stats.percentChange >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              <span className="text-white font-mono text-2xl">${formatNumber(stats.price, 2)}</span>
+              <div
+                className={`flex items-center space-x-1 ${
+                  stats.percentChange >= 0
+                    ? 'text-bloomberg-data-positive'
+                    : 'text-bloomberg-data-negative'
+                }`}
+              >
+                {stats.percentChange >= 0 ? (
+                  <TrendingUp className="h-4 w-4" />
+                ) : (
+                  <TrendingDown className="h-4 w-4" />
+                )}
                 <span className="font-mono text-lg">
-                  {stats.percentChange >= 0 ? '+' : ''}{formatNumber(stats.percentChange, 2)}%
+                  {stats.percentChange >= 0 ? '+' : ''}
+                  {formatNumber(stats.percentChange, 2)}%
                 </span>
               </div>
             </div>
@@ -179,12 +237,8 @@ const StatsTile = ({ symbol }) => {
           {/* Dollar Volume */}
           <div>
             <div className="text-gray-400 text-xs mb-1">DOLLAR VOLUME</div>
-            <div className="text-white font-mono text-xl">
-              {formatVolume(stats.dollarVolume)}
-            </div>
-            <div className="text-gray-500 text-xs mt-1">
-              Volume: {formatVolume(stats.volume)}
-            </div>
+            <div className="text-white font-mono text-xl">{formatVolume(stats.dollarVolume)}</div>
+            <div className="text-gray-500 text-xs mt-1">Volume: {formatVolume(stats.volume)}</div>
           </div>
         </div>
 
@@ -195,11 +249,15 @@ const StatsTile = ({ symbol }) => {
             <div className="text-gray-400 text-xs mb-1">RELATIVE VOLUME (RVOL)</div>
             {stats.rvol !== null ? (
               <>
-                <div className={`font-mono text-xl ${
-                  stats.rvol > 1.5 ? 'text-bloomberg-data-positive' :
-                  stats.rvol < 0.5 ? 'text-bloomberg-data-negative' :
-                  'text-white'
-                }`}>
+                <div
+                  className={`font-mono text-xl ${
+                    stats.rvol > 1.5
+                      ? 'text-bloomberg-data-positive'
+                      : stats.rvol < 0.5
+                        ? 'text-bloomberg-data-negative'
+                        : 'text-white'
+                  }`}
+                >
                   {formatNumber(stats.rvol, 2)}x
                 </div>
                 <div className="text-gray-500 text-xs mt-1">
@@ -232,7 +290,7 @@ const StatsTile = ({ symbol }) => {
                       className="absolute top-0 w-1 h-2 bg-bloomberg-orange shadow-lg"
                       style={{
                         left: `${stats.percentile52w * 100}%`,
-                        transform: 'translateX(-50%)'
+                        transform: 'translateX(-50%)',
                       }}
                       title={`${(stats.percentile52w * 100).toFixed(1)}% of range`}
                     ></div>
@@ -246,6 +304,115 @@ const StatsTile = ({ symbol }) => {
               </>
             ) : (
               <div className="text-gray-500">---</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Historical Performance Returns */}
+      <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
+        <div className="text-gray-400 text-xs font-bold mb-3">PERFORMANCE</div>
+        <div className="grid grid-cols-7 gap-2">
+          {[
+            { label: '1D', value: stats.return1D },
+            { label: '5D', value: stats.return5D },
+            { label: '1M', value: stats.return1M },
+            { label: '3M', value: stats.return3M },
+            { label: '6M', value: stats.return6M },
+            { label: 'YTD', value: stats.returnYTD },
+            { label: '1Y', value: stats.return1Y },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-bloomberg-secondary/30 rounded p-2 text-center">
+              <div className="text-gray-500 text-xs mb-1">{label}</div>
+              <div className={`font-mono text-sm ${getReturnColor(value)}`}>
+                {formatReturn(value)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Moving Averages Section */}
+      <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-gray-400 text-xs font-bold">MOVING AVERAGES</div>
+          {stats.maTrend && (
+            <div className={`flex items-center space-x-2 ${getTrendColor(stats.maTrend)}`}>
+              {stats.maTrend.includes('BULLISH') ? (
+                <ArrowUpCircle className="h-4 w-4" />
+              ) : stats.maTrend.includes('BEARISH') ? (
+                <ArrowDownCircle className="h-4 w-4" />
+              ) : null}
+              <span className="text-xs font-bold">{getTrendLabel(stats.maTrend)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Crossover Signal Alert */}
+        {stats.crossoverSignal && (
+          <div
+            className={`mb-4 p-2 rounded text-xs font-bold flex items-center space-x-2 ${
+              stats.crossoverSignal === 'GOLDEN_CROSS'
+                ? 'bg-green-900/40 border border-green-600 text-green-400'
+                : 'bg-red-900/40 border border-red-600 text-red-400'
+            }`}
+          >
+            {stats.crossoverSignal === 'GOLDEN_CROSS' ? (
+              <>
+                <ArrowUpCircle className="h-4 w-4" />
+                <span>GOLDEN CROSS DETECTED - SMA50 crossed above SMA200</span>
+              </>
+            ) : (
+              <>
+                <ArrowDownCircle className="h-4 w-4" />
+                <span>DEATH CROSS DETECTED - SMA50 crossed below SMA200</span>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-4">
+          {/* SMA 20 */}
+          <div className="bg-bloomberg-secondary/30 rounded p-3">
+            <div className="text-gray-400 text-xs mb-1">SMA(20)</div>
+            <div className="text-white font-mono text-lg">${formatNumber(stats.sma20, 2)}</div>
+            {stats.priceVsSma20 !== null && (
+              <div className={`text-xs mt-1 ${getPriceVsMAColor(stats.priceVsSma20)}`}>
+                {stats.priceVsSma20 >= 0 ? '▲' : '▼'} {Math.abs(stats.priceVsSma20).toFixed(2)}%
+                <span className="text-gray-500 ml-1">
+                  {stats.priceVsSma20 >= 0 ? 'above' : 'below'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* SMA 50 */}
+          <div className="bg-bloomberg-secondary/30 rounded p-3">
+            <div className="text-gray-400 text-xs mb-1">SMA(50)</div>
+            <div className="text-white font-mono text-lg">${formatNumber(stats.sma50, 2)}</div>
+            {stats.priceVsSma50 !== null && (
+              <div className={`text-xs mt-1 ${getPriceVsMAColor(stats.priceVsSma50)}`}>
+                {stats.priceVsSma50 >= 0 ? '▲' : '▼'} {Math.abs(stats.priceVsSma50).toFixed(2)}%
+                <span className="text-gray-500 ml-1">
+                  {stats.priceVsSma50 >= 0 ? 'above' : 'below'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* SMA 200 */}
+          <div className="bg-bloomberg-secondary/30 rounded p-3">
+            <div className="text-gray-400 text-xs mb-1">SMA(200)</div>
+            <div className="text-white font-mono text-lg">
+              {stats.sma200 ? `$${formatNumber(stats.sma200, 2)}` : '---'}
+            </div>
+            {stats.priceVsSma200 !== null && (
+              <div className={`text-xs mt-1 ${getPriceVsMAColor(stats.priceVsSma200)}`}>
+                {stats.priceVsSma200 >= 0 ? '▲' : '▼'} {Math.abs(stats.priceVsSma200).toFixed(2)}%
+                <span className="text-gray-500 ml-1">
+                  {stats.priceVsSma200 >= 0 ? 'above' : 'below'}
+                </span>
+              </div>
             )}
           </div>
         </div>
@@ -270,17 +437,25 @@ const StatsTile = ({ symbol }) => {
             <div className="text-gray-400 text-xs mb-1">MACD(12,26,9)</div>
             {stats.macd !== null && stats.macdSignal !== null ? (
               <div className="space-y-1">
-                <div className={`font-mono text-sm ${
-                  stats.macdHistogram > 0 ? 'text-bloomberg-data-positive' : 'text-bloomberg-data-negative'
-                }`}>
+                <div
+                  className={`font-mono text-sm ${
+                    stats.macdHistogram > 0
+                      ? 'text-bloomberg-data-positive'
+                      : 'text-bloomberg-data-negative'
+                  }`}
+                >
                   MACD: {formatNumber(stats.macd, 4)}
                 </div>
                 <div className="font-mono text-xs text-gray-400">
                   Signal: {formatNumber(stats.macdSignal, 4)}
                 </div>
-                <div className={`font-mono text-xs ${
-                  stats.macdHistogram > 0 ? 'text-bloomberg-data-positive' : 'text-bloomberg-data-negative'
-                }`}>
+                <div
+                  className={`font-mono text-xs ${
+                    stats.macdHistogram > 0
+                      ? 'text-bloomberg-data-positive'
+                      : 'text-bloomberg-data-negative'
+                  }`}
+                >
                   Hist: {formatNumber(stats.macdHistogram, 4)}
                 </div>
               </div>
@@ -292,9 +467,7 @@ const StatsTile = ({ symbol }) => {
           {/* ATR(14) */}
           <div>
             <div className="text-gray-400 text-xs mb-1">ATR(14)</div>
-            <div className="font-mono text-lg text-white">
-              {formatNumber(stats.atr14, 2)}
-            </div>
+            <div className="font-mono text-lg text-white">{formatNumber(stats.atr14, 2)}</div>
             {stats.atr14 !== null && (
               <div className="text-xs text-gray-500 mt-1">
                 Volatility: {formatNumber((stats.atr14 / stats.price) * 100, 2)}%
@@ -310,9 +483,7 @@ const StatsTile = ({ symbol }) => {
           <Activity className="h-3 w-3" />
           <span>Powered by Twelve Data</span>
         </div>
-        <span>
-          Updated: {new Date(stats.timestamp).toLocaleTimeString()}
-        </span>
+        <span>Updated: {new Date(stats.timestamp).toLocaleTimeString()}</span>
       </div>
     </div>
   );

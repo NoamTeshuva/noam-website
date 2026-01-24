@@ -6,7 +6,7 @@
  * Caching: 60s for quotes, 15min for time series
  */
 
-import { calculateEMA, calculateWilderSmoothing } from '../utils/ema';
+import { calculateEMA, calculateWilderSmoothing, calculateSMA } from '../utils/ema';
 import { isTDExhausted, handleTDResponse, getTimeUntilReset } from '../utils/rateLimitManager';
 
 const WORKER_URL = process.env.REACT_APP_WORKER_URL || '/api';
@@ -36,7 +36,9 @@ const loadPersistentCache = () => {
         Object.entries(series || {}).forEach(([key, value]) => {
           seriesCache.set(key, value);
         });
-        console.log(`📦 [TDStats] Loaded ${Object.keys(quotes || {}).length} quotes and ${Object.keys(series || {}).length} series from persistent cache`);
+        console.log(
+          `📦 [TDStats] Loaded ${Object.keys(quotes || {}).length} quotes and ${Object.keys(series || {}).length} series from persistent cache`
+        );
       } else {
         localStorage.removeItem('tdStatsCache');
       }
@@ -60,11 +62,14 @@ const savePersistentCache = () => {
       series[key] = value;
     });
 
-    localStorage.setItem('tdStatsCache', JSON.stringify({
-      quotes,
-      series,
-      timestamp: Date.now()
-    }));
+    localStorage.setItem(
+      'tdStatsCache',
+      JSON.stringify({
+        quotes,
+        series,
+        timestamp: Date.now(),
+      })
+    );
   } catch (error) {
     console.warn('[TDStats] Failed to save persistent cache:', error);
   }
@@ -85,14 +90,16 @@ export const fetchTDQuote = async (symbol) => {
   if (isTDExhausted()) {
     if (cached) {
       const timeRemaining = getTimeUntilReset();
-      console.warn(`⏸️ [TDStats] Using cached quote for ${symbol} - TD exhausted (resets in ${timeRemaining})`);
+      console.warn(
+        `⏸️ [TDStats] Using cached quote for ${symbol} - TD exhausted (resets in ${timeRemaining})`
+      );
       return cached.data;
     }
     const timeRemaining = getTimeUntilReset();
     throw new Error(`TD_EXHAUSTED:No cached data available. Rate limit resets in ${timeRemaining}`);
   }
 
-  if (cached && (Date.now() - cached.timestamp) < QUOTE_CACHE_TTL) {
+  if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_TTL) {
     console.log(`📋 [TDStats] Quote cache hit for ${symbol}`);
     return cached.data;
   }
@@ -112,11 +119,15 @@ export const fetchTDQuote = async (symbol) => {
       // Return cached data if available
       if (cached) {
         const timeRemaining = getTimeUntilReset();
-        console.warn(`⏸️ [TDStats] Rate limit hit, using cached quote for ${symbol} (resets in ${timeRemaining})`);
+        console.warn(
+          `⏸️ [TDStats] Rate limit hit, using cached quote for ${symbol} (resets in ${timeRemaining})`
+        );
         return cached.data;
       }
       const timeRemaining = getTimeUntilReset();
-      throw new Error(`TD_EXHAUSTED:No cached data available. Rate limit resets in ${timeRemaining}`);
+      throw new Error(
+        `TD_EXHAUSTED:No cached data available. Rate limit resets in ${timeRemaining}`
+      );
     }
 
     if (data.code === 400 || data.status === 'error') {
@@ -134,12 +145,14 @@ export const fetchTDQuote = async (symbol) => {
       previousClose: parseFloat(data.previous_close) || null,
       percentChange: parseFloat(data.percent_change) || null,
       averageVolume: parseInt(data.average_volume) || null,
-      fiftyTwoWeek: data.fifty_two_week ? {
-        low: parseFloat(data.fifty_two_week.low) || null,
-        high: parseFloat(data.fifty_two_week.high) || null,
-        range: data.fifty_two_week.range || null
-      } : null,
-      timestamp: Date.now()
+      fiftyTwoWeek: data.fifty_two_week
+        ? {
+            low: parseFloat(data.fifty_two_week.low) || null,
+            high: parseFloat(data.fifty_two_week.high) || null,
+            range: data.fifty_two_week.range || null,
+          }
+        : null,
+      timestamp: Date.now(),
     };
 
     // Cache the result
@@ -148,7 +161,6 @@ export const fetchTDQuote = async (symbol) => {
 
     console.log(`✅ [TDStats] Got quote for ${symbol}: $${quote.close}`);
     return quote;
-
   } catch (error) {
     console.error(`❌ [TDStats] Error fetching quote for ${symbol}:`, error);
     throw error;
@@ -167,20 +179,24 @@ export const fetchTDSeries = async (symbol, interval = '1day', outputsize = 200)
   if (isTDExhausted()) {
     if (cached) {
       const timeRemaining = getTimeUntilReset();
-      console.warn(`⏸️ [TDStats] Using cached series for ${symbol} - TD exhausted (resets in ${timeRemaining})`);
+      console.warn(
+        `⏸️ [TDStats] Using cached series for ${symbol} - TD exhausted (resets in ${timeRemaining})`
+      );
       return cached.data;
     }
     const timeRemaining = getTimeUntilReset();
     throw new Error(`TD_EXHAUSTED:No cached data available. Rate limit resets in ${timeRemaining}`);
   }
 
-  if (cached && (Date.now() - cached.timestamp) < SERIES_CACHE_TTL) {
+  if (cached && Date.now() - cached.timestamp < SERIES_CACHE_TTL) {
     console.log(`📋 [TDStats] Series cache hit for ${symbol}`);
     return cached.data;
   }
 
   try {
-    console.log(`📈 [TDStats] Fetching time series for ${symbol} (${interval}, ${outputsize} bars)...`);
+    console.log(
+      `📈 [TDStats] Fetching time series for ${symbol} (${interval}, ${outputsize} bars)...`
+    );
     const response = await fetch(
       `${WORKER_URL}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}`
     );
@@ -196,11 +212,15 @@ export const fetchTDSeries = async (symbol, interval = '1day', outputsize = 200)
       // Return cached data if available
       if (cached) {
         const timeRemaining = getTimeUntilReset();
-        console.warn(`⏸️ [TDStats] Rate limit hit, using cached series for ${symbol} (resets in ${timeRemaining})`);
+        console.warn(
+          `⏸️ [TDStats] Rate limit hit, using cached series for ${symbol} (resets in ${timeRemaining})`
+        );
         return cached.data;
       }
       const timeRemaining = getTimeUntilReset();
-      throw new Error(`TD_EXHAUSTED:No cached data available. Rate limit resets in ${timeRemaining}`);
+      throw new Error(
+        `TD_EXHAUSTED:No cached data available. Rate limit resets in ${timeRemaining}`
+      );
     }
 
     if (data.code === 400 || data.status === 'error') {
@@ -212,13 +232,13 @@ export const fetchTDSeries = async (symbol, interval = '1day', outputsize = 200)
     }
 
     // Parse bars (TD returns newest first, we want oldest first for calculations)
-    const bars = data.values.reverse().map(item => ({
+    const bars = data.values.reverse().map((item) => ({
       datetime: item.datetime,
       open: parseFloat(item.open),
       high: parseFloat(item.high),
       low: parseFloat(item.low),
       close: parseFloat(item.close),
-      volume: parseInt(item.volume) || 0
+      volume: parseInt(item.volume) || 0,
     }));
 
     // Cache the result
@@ -227,7 +247,6 @@ export const fetchTDSeries = async (symbol, interval = '1day', outputsize = 200)
 
     console.log(`✅ [TDStats] Got ${bars.length} bars for ${symbol}`);
     return bars;
-
   } catch (error) {
     console.error(`❌ [TDStats] Error fetching series for ${symbol}:`, error);
     throw error;
@@ -249,8 +268,8 @@ export const calculateRSI = (bars, period = 14) => {
   }
 
   // Separate gains and losses
-  const gains = changes.map(c => c > 0 ? c : 0);
-  const losses = changes.map(c => c < 0 ? -c : 0);
+  const gains = changes.map((c) => (c > 0 ? c : 0));
+  const losses = changes.map((c) => (c < 0 ? -c : 0));
 
   // Apply Wilder's smoothing
   const avgGains = calculateWilderSmoothing(gains, period);
@@ -269,11 +288,11 @@ export const calculateRSI = (bars, period = 14) => {
   }
 
   const rs = lastAvgGain / lastAvgLoss;
-  const rsi = 100 - (100 / (1 + rs));
+  const rsi = 100 - 100 / (1 + rs);
 
   return {
     rsi: rsi,
-    lowConfidence: bars.length < 30
+    lowConfidence: bars.length < 30,
   };
 };
 
@@ -285,7 +304,7 @@ export const calculateMACD = (bars, fastPeriod = 12, slowPeriod = 26, signalPeri
     return { macd: null, signal: null, histogram: null, lowConfidence: true };
   }
 
-  const closes = bars.map(b => b.close);
+  const closes = bars.map((b) => b.close);
 
   // Calculate fast and slow EMAs
   const fastEMA = calculateEMA(closes, fastPeriod);
@@ -315,7 +334,7 @@ export const calculateMACD = (bars, fastPeriod = 12, slowPeriod = 26, signalPeri
     macd: latestMACD,
     signal: latestSignal,
     histogram: histogram,
-    lowConfidence: bars.length < 50
+    lowConfidence: bars.length < 50,
   };
 };
 
@@ -334,11 +353,7 @@ export const calculateATR = (bars, period = 14) => {
     const low = bars[i].low;
     const prevClose = bars[i - 1].close;
 
-    const tr = Math.max(
-      high - low,
-      Math.abs(high - prevClose),
-      Math.abs(low - prevClose)
-    );
+    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
 
     trueRanges.push(tr);
   }
@@ -352,7 +367,7 @@ export const calculateATR = (bars, period = 14) => {
 
   return {
     atr: atrValues[atrValues.length - 1],
-    lowConfidence: bars.length < 30
+    lowConfidence: bars.length < 30,
   };
 };
 
@@ -375,12 +390,142 @@ export const calc52wPercentile = (quote) => {
 };
 
 /**
+ * Calculate Historical Performance Returns
+ * @param {Array} bars - OHLCV bars (oldest first)
+ * @param {number} currentPrice - Current price
+ * @returns {Object} - Returns for various periods
+ */
+export const calculateReturns = (bars, currentPrice) => {
+  if (!bars || bars.length === 0) {
+    return {
+      return1D: null,
+      return5D: null,
+      return1M: null,
+      return3M: null,
+      return6M: null,
+      returnYTD: null,
+      return1Y: null,
+    };
+  }
+
+  // Helper to calculate return percentage
+  const calcReturn = (oldPrice) => {
+    if (!oldPrice || oldPrice === 0) return null;
+    return ((currentPrice - oldPrice) / oldPrice) * 100;
+  };
+
+  // Helper to get price N bars ago (from end)
+  const getPriceNBarsAgo = (n) => {
+    const idx = bars.length - 1 - n;
+    return idx >= 0 ? bars[idx].close : null;
+  };
+
+  // Trading days approximations
+  const return1D = calcReturn(getPriceNBarsAgo(1));
+  const return5D = calcReturn(getPriceNBarsAgo(5));
+  const return1M = calcReturn(getPriceNBarsAgo(21)); // ~1 month
+  const return3M = calcReturn(getPriceNBarsAgo(63)); // ~3 months
+  const return6M = calcReturn(getPriceNBarsAgo(126)); // ~6 months
+  const return1Y = calcReturn(getPriceNBarsAgo(252)); // ~1 year (may be null if < 252 bars)
+
+  // YTD - find first bar of current year
+  const currentYear = new Date().getFullYear();
+  let returnYTD = null;
+  for (let i = 0; i < bars.length; i++) {
+    const barDate = new Date(bars[i].datetime);
+    if (barDate.getFullYear() === currentYear) {
+      returnYTD = calcReturn(bars[i].close);
+      break;
+    }
+  }
+
+  return {
+    return1D,
+    return5D,
+    return1M,
+    return3M,
+    return6M,
+    returnYTD,
+    return1Y,
+  };
+};
+
+/**
+ * Calculate Moving Averages (SMA 20, 50, 200) with trend signals
+ * @param {Array} bars - OHLCV bars
+ * @param {number} currentPrice - Current price for comparison
+ * @returns {Object} - Moving average values and signals
+ */
+export const calculateMovingAverages = (bars, currentPrice) => {
+  const closes = bars.map((b) => b.close);
+
+  // Calculate SMAs
+  const sma20Array = calculateSMA(closes, 20);
+  const sma50Array = calculateSMA(closes, 50);
+  const sma200Array = calculateSMA(closes, 200);
+
+  // Get latest values
+  const sma20 = sma20Array.length > 0 ? sma20Array[sma20Array.length - 1] : null;
+  const sma50 = sma50Array.length > 0 ? sma50Array[sma50Array.length - 1] : null;
+  const sma200 = sma200Array.length > 0 ? sma200Array[sma200Array.length - 1] : null;
+
+  // Calculate price position relative to MAs (as percentage)
+  const priceVsSma20 = sma20 ? ((currentPrice - sma20) / sma20) * 100 : null;
+  const priceVsSma50 = sma50 ? ((currentPrice - sma50) / sma50) * 100 : null;
+  const priceVsSma200 = sma200 ? ((currentPrice - sma200) / sma200) * 100 : null;
+
+  // Detect Golden Cross / Death Cross
+  // Golden Cross: SMA50 crosses above SMA200
+  // Death Cross: SMA50 crosses below SMA200
+  let crossoverSignal = null;
+  if (sma50Array.length >= 2 && sma200Array.length >= 2) {
+    const prevSma50 = sma50Array[sma50Array.length - 2];
+    const prevSma200 = sma200Array[sma200Array.length - 2];
+
+    // Check for recent crossover (within last bar)
+    if (prevSma50 <= prevSma200 && sma50 > sma200) {
+      crossoverSignal = 'GOLDEN_CROSS';
+    } else if (prevSma50 >= prevSma200 && sma50 < sma200) {
+      crossoverSignal = 'DEATH_CROSS';
+    }
+  }
+
+  // Determine trend based on MA alignment
+  let trend = 'NEUTRAL';
+  if (sma20 && sma50 && sma200) {
+    if (currentPrice > sma20 && sma20 > sma50 && sma50 > sma200) {
+      trend = 'STRONG_BULLISH';
+    } else if (currentPrice > sma50 && sma50 > sma200) {
+      trend = 'BULLISH';
+    } else if (currentPrice < sma20 && sma20 < sma50 && sma50 < sma200) {
+      trend = 'STRONG_BEARISH';
+    } else if (currentPrice < sma50 && sma50 < sma200) {
+      trend = 'BEARISH';
+    }
+  }
+
+  return {
+    sma20,
+    sma50,
+    sma200,
+    priceVsSma20,
+    priceVsSma50,
+    priceVsSma200,
+    crossoverSignal,
+    trend,
+    lowConfidence: bars.length < 200,
+  };
+};
+
+/**
  * Compute all indicators from time series bars
  */
-export const computeIndicators = (bars) => {
+export const computeIndicators = (bars, currentPrice) => {
   const rsiResult = calculateRSI(bars, 14);
   const macdResult = calculateMACD(bars, 12, 26, 9);
   const atrResult = calculateATR(bars, 14);
+  const maResult = calculateMovingAverages(bars, currentPrice);
+  const returns = calculateReturns(bars, currentPrice);
 
   return {
     rsi14: rsiResult.rsi,
@@ -388,7 +533,28 @@ export const computeIndicators = (bars) => {
     macdSignal: macdResult.signal,
     macdHistogram: macdResult.histogram,
     atr14: atrResult.atr,
-    lowConfidence: rsiResult.lowConfidence || macdResult.lowConfidence || atrResult.lowConfidence
+    // Moving Averages
+    sma20: maResult.sma20,
+    sma50: maResult.sma50,
+    sma200: maResult.sma200,
+    priceVsSma20: maResult.priceVsSma20,
+    priceVsSma50: maResult.priceVsSma50,
+    priceVsSma200: maResult.priceVsSma200,
+    crossoverSignal: maResult.crossoverSignal,
+    maTrend: maResult.trend,
+    // Historical Returns
+    return1D: returns.return1D,
+    return5D: returns.return5D,
+    return1M: returns.return1M,
+    return3M: returns.return3M,
+    return6M: returns.return6M,
+    returnYTD: returns.returnYTD,
+    return1Y: returns.return1Y,
+    lowConfidence:
+      rsiResult.lowConfidence ||
+      macdResult.lowConfidence ||
+      atrResult.lowConfidence ||
+      maResult.lowConfidence,
   };
 };
 
@@ -403,7 +569,7 @@ export const buildStats = async (symbol) => {
     // Fetch quote and series in parallel (2 TD API calls)
     const [quote, bars] = await Promise.all([
       fetchTDQuote(symbol),
-      fetchTDSeries(symbol, '1day', 200)
+      fetchTDSeries(symbol, '1day', 200),
     ]);
 
     // Calculate % change
@@ -421,8 +587,8 @@ export const buildStats = async (symbol) => {
     // Calculate 52-week percentile
     const percentile52w = calc52wPercentile(quote);
 
-    // Compute technical indicators
-    const indicators = computeIndicators(bars);
+    // Compute technical indicators (pass current price for MA calculations)
+    const indicators = computeIndicators(bars, quote.close);
 
     const stats = {
       symbol: symbol.toUpperCase(),
@@ -439,8 +605,25 @@ export const buildStats = async (symbol) => {
       macdSignal: indicators.macdSignal,
       macdHistogram: indicators.macdHistogram,
       atr14: indicators.atr14,
+      // Moving Averages
+      sma20: indicators.sma20,
+      sma50: indicators.sma50,
+      sma200: indicators.sma200,
+      priceVsSma20: indicators.priceVsSma20,
+      priceVsSma50: indicators.priceVsSma50,
+      priceVsSma200: indicators.priceVsSma200,
+      crossoverSignal: indicators.crossoverSignal,
+      maTrend: indicators.maTrend,
+      // Historical Returns
+      return1D: indicators.return1D,
+      return5D: indicators.return5D,
+      return1M: indicators.return1M,
+      return3M: indicators.return3M,
+      return6M: indicators.return6M,
+      returnYTD: indicators.returnYTD,
+      return1Y: indicators.return1Y,
       lowConfidence: indicators.lowConfidence,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     console.log(`✅ [TDStats] Stats for ${symbol}:`, {
@@ -449,11 +632,15 @@ export const buildStats = async (symbol) => {
       macd: indicators.macd?.toFixed(4),
       atr14: indicators.atr14?.toFixed(2),
       pct: percentChange?.toFixed(2),
-      pct52w: (percentile52w * 100)?.toFixed(1)
+      pct52w: (percentile52w * 100)?.toFixed(1),
+      sma20: indicators.sma20?.toFixed(2),
+      sma50: indicators.sma50?.toFixed(2),
+      sma200: indicators.sma200?.toFixed(2),
+      maTrend: indicators.maTrend,
+      crossover: indicators.crossoverSignal,
     });
 
     return stats;
-
   } catch (error) {
     console.error(`❌ [TDStats] Error building stats for ${symbol}:`, error);
     throw error;
