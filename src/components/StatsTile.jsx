@@ -130,6 +130,20 @@ const StatsTile = ({ symbol }) => {
     return '';
   };
 
+  const getStochColor = (k) => {
+    if (k === null) return 'text-gray-400';
+    if (k >= 80) return 'text-bloomberg-status-error'; // Overbought
+    if (k <= 20) return 'text-bloomberg-data-positive'; // Oversold
+    return 'text-white';
+  };
+
+  const getStochLabel = (k) => {
+    if (k === null) return '';
+    if (k >= 80) return '(Overbought)';
+    if (k <= 20) return '(Oversold)';
+    return '';
+  };
+
   const getTrendColor = (trend) => {
     switch (trend) {
       case 'STRONG_BULLISH':
@@ -553,7 +567,7 @@ const StatsTile = ({ symbol }) => {
 
       {/* Footer: Technical Indicators */}
       <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {/* RSI(14) */}
           <div>
             <div className="text-gray-400 text-xs mb-1">RSI(14)</div>
@@ -563,6 +577,26 @@ const StatsTile = ({ symbol }) => {
                 <span className="text-xs ml-2">{getRSILabel(stats.rsi14)}</span>
               )}
             </div>
+          </div>
+
+          {/* Stochastic */}
+          <div>
+            <div className="text-gray-400 text-xs mb-1">STOCH(14,3)</div>
+            {stats.stochK !== null ? (
+              <div className="space-y-1">
+                <div className={`font-mono text-lg ${getStochColor(stats.stochK)}`}>
+                  %K: {formatNumber(stats.stochK, 1)}
+                  {stats.stochK !== null && (
+                    <span className="text-xs ml-1">{getStochLabel(stats.stochK)}</span>
+                  )}
+                </div>
+                <div className="font-mono text-xs text-gray-400">
+                  %D: {formatNumber(stats.stochD, 1)}
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500">---</div>
+            )}
           </div>
 
           {/* MACD */}

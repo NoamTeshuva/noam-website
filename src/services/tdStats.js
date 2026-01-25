@@ -372,6 +372,54 @@ export const calculateATR = (bars, period = 14) => {
 };
 
 /**
+ * Calculate Stochastic Oscillator (%K and %D)
+ * @param {Array} bars - OHLCV bars
+ * @param {number} kPeriod - %K period (default 14)
+ * @param {number} dPeriod - %D smoothing period (default 3)
+ * @returns {Object} - Stochastic values
+ */
+export const calculateStochastic = (bars, kPeriod = 14, dPeriod = 3) => {
+  if (!bars || bars.length < kPeriod) {
+    return { stochK: null, stochD: null, lowConfidence: true };
+  }
+
+  const kValues = [];
+
+  // Calculate %K for each bar starting from kPeriod
+  for (let i = kPeriod - 1; i < bars.length; i++) {
+    // Find highest high and lowest low in the period
+    let highestHigh = -Infinity;
+    let lowestLow = Infinity;
+
+    for (let j = i - kPeriod + 1; j <= i; j++) {
+      if (bars[j].high > highestHigh) highestHigh = bars[j].high;
+      if (bars[j].low < lowestLow) lowestLow = bars[j].low;
+    }
+
+    // Calculate %K
+    const range = highestHigh - lowestLow;
+    const k = range !== 0 ? ((bars[i].close - lowestLow) / range) * 100 : 50;
+    kValues.push(k);
+  }
+
+  if (kValues.length === 0) {
+    return { stochK: null, stochD: null, lowConfidence: true };
+  }
+
+  // Calculate %D (SMA of %K)
+  const dValues = calculateSMA(kValues, dPeriod);
+
+  const stochK = kValues[kValues.length - 1];
+  const stochD = dValues.length > 0 ? dValues[dValues.length - 1] : null;
+
+  return {
+    stochK,
+    stochD,
+    lowConfidence: bars.length < kPeriod + dPeriod + 10,
+  };
+};
+
+/**
  * Calculate 52-week percentile (where current price sits in 52w range)
  * Returns value between 0 (at low) and 1 (at high)
  */
@@ -712,6 +760,7 @@ export const computeIndicators = (bars, currentPrice) => {
   const rsiResult = calculateRSI(bars, 14);
   const macdResult = calculateMACD(bars, 12, 26, 9);
   const atrResult = calculateATR(bars, 14);
+  const stochResult = calculateStochastic(bars, 14, 3);
   const maResult = calculateMovingAverages(bars, currentPrice);
   const returns = calculateReturns(bars, currentPrice);
   const pivots = calculatePivotPoints(bars, currentPrice);
@@ -723,6 +772,9 @@ export const computeIndicators = (bars, currentPrice) => {
     macdSignal: macdResult.signal,
     macdHistogram: macdResult.histogram,
     atr14: atrResult.atr,
+    // Stochastic
+    stochK: stochResult.stochK,
+    stochD: stochResult.stochD,
     // Moving Averages
     sma20: maResult.sma20,
     sma50: maResult.sma50,
@@ -746,6 +798,7 @@ export const computeIndicators = (bars, currentPrice) => {
       rsiResult.lowConfidence ||
       macdResult.lowConfidence ||
       atrResult.lowConfidence ||
+      stochResult.lowConfidence ||
       maResult.lowConfidence,
   };
 
@@ -805,6 +858,9 @@ export const buildStats = async (symbol) => {
       macdSignal: indicators.macdSignal,
       macdHistogram: indicators.macdHistogram,
       atr14: indicators.atr14,
+      // Stochastic
+      stochK: indicators.stochK,
+      stochD: indicators.stochD,
       // Moving Averages
       sma20: indicators.sma20,
       sma50: indicators.sma50,
