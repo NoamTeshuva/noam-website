@@ -180,6 +180,28 @@ const StatsTile = ({ symbol }) => {
     return `${sign}${ret.toFixed(2)}%`;
   };
 
+  const getBiasColor = (bias) => {
+    switch (bias) {
+      case 'BULLISH':
+        return 'text-bloomberg-data-positive';
+      case 'BEARISH':
+        return 'text-bloomberg-data-negative';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  const getBiasBgColor = (bias) => {
+    switch (bias) {
+      case 'BULLISH':
+        return 'bg-green-900/40 border-green-600';
+      case 'BEARISH':
+        return 'bg-red-900/40 border-red-600';
+      default:
+        return 'bg-gray-800/40 border-gray-600';
+    }
+  };
+
   return (
     <div className="bg-bloomberg-panel border border-bloomberg-border rounded p-6">
       {/* Header */}
@@ -201,6 +223,43 @@ const StatsTile = ({ symbol }) => {
             <span className="text-yellow-300 text-xs">
               Rate limit reached. Showing cached data. {resetTime}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Signal Summary */}
+      {stats.signalSummary && (
+        <div className={`mb-6 p-4 rounded border ${getBiasBgColor(stats.signalSummary.bias)}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <span className="text-gray-400 text-xs font-bold">SIGNAL</span>
+              <span className={`text-2xl font-bold ${getBiasColor(stats.signalSummary.bias)}`}>
+                {stats.signalSummary.bias}
+              </span>
+            </div>
+            <div className="text-right">
+              <div className="text-gray-400 text-xs">Strength</div>
+              <div className={`text-lg font-mono ${getBiasColor(stats.signalSummary.bias)}`}>
+                {stats.signalSummary.strength}%
+              </div>
+            </div>
+          </div>
+          {/* Signal breakdown */}
+          <div className="flex flex-wrap gap-2">
+            {stats.signalSummary.signals.map((sig, idx) => (
+              <div
+                key={idx}
+                className={`px-2 py-1 rounded text-xs ${
+                  sig.signal === 'BULLISH'
+                    ? 'bg-green-900/50 text-green-400'
+                    : sig.signal === 'BEARISH'
+                      ? 'bg-red-900/50 text-red-400'
+                      : 'bg-gray-700/50 text-gray-400'
+                }`}
+              >
+                <span className="font-bold">{sig.name}:</span> {sig.reason}
+              </div>
+            ))}
           </div>
         </div>
       )}

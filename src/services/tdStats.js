@@ -532,6 +532,100 @@ export const calculateMovingAverages = (bars, currentPrice) => {
 };
 
 /**
+ * Calculate overall signal/bias based on indicator confluence
+ * @param {Object} indicators - All computed indicators
+ * @returns {Object} - Signal summary with bias and strength
+ */
+export const calculateSignalSummary = (indicators) => {
+  let bullishSignals = 0;
+  let bearishSignals = 0;
+  const signals = [];
+
+  // RSI Signal
+  if (indicators.rsi14 !== null) {
+    if (indicators.rsi14 <= 30) {
+      bullishSignals += 1; // Oversold = bullish
+      signals.push({ name: 'RSI', signal: 'BULLISH', reason: 'Oversold' });
+    } else if (indicators.rsi14 >= 70) {
+      bearishSignals += 1; // Overbought = bearish
+      signals.push({ name: 'RSI', signal: 'BEARISH', reason: 'Overbought' });
+    } else if (indicators.rsi14 > 50) {
+      bullishSignals += 0.5;
+      signals.push({ name: 'RSI', signal: 'NEUTRAL', reason: 'Above 50' });
+    } else {
+      bearishSignals += 0.5;
+      signals.push({ name: 'RSI', signal: 'NEUTRAL', reason: 'Below 50' });
+    }
+  }
+
+  // MACD Signal
+  if (indicators.macdHistogram !== null) {
+    if (indicators.macdHistogram > 0) {
+      bullishSignals += 1;
+      signals.push({ name: 'MACD', signal: 'BULLISH', reason: 'Positive histogram' });
+    } else {
+      bearishSignals += 1;
+      signals.push({ name: 'MACD', signal: 'BEARISH', reason: 'Negative histogram' });
+    }
+  }
+
+  // MA Trend Signal
+  if (indicators.maTrend) {
+    if (indicators.maTrend === 'STRONG_BULLISH') {
+      bullishSignals += 2;
+      signals.push({ name: 'MA Trend', signal: 'BULLISH', reason: 'Price > all MAs aligned' });
+    } else if (indicators.maTrend === 'BULLISH') {
+      bullishSignals += 1;
+      signals.push({ name: 'MA Trend', signal: 'BULLISH', reason: 'Above key MAs' });
+    } else if (indicators.maTrend === 'STRONG_BEARISH') {
+      bearishSignals += 2;
+      signals.push({ name: 'MA Trend', signal: 'BEARISH', reason: 'Price < all MAs aligned' });
+    } else if (indicators.maTrend === 'BEARISH') {
+      bearishSignals += 1;
+      signals.push({ name: 'MA Trend', signal: 'BEARISH', reason: 'Below key MAs' });
+    }
+  }
+
+  // Price vs SMA200 (long-term trend)
+  if (indicators.priceVsSma200 !== null) {
+    if (indicators.priceVsSma200 > 0) {
+      bullishSignals += 1;
+      signals.push({ name: 'SMA200', signal: 'BULLISH', reason: 'Above 200-day MA' });
+    } else {
+      bearishSignals += 1;
+      signals.push({ name: 'SMA200', signal: 'BEARISH', reason: 'Below 200-day MA' });
+    }
+  }
+
+  // Determine overall bias
+  const totalSignals = bullishSignals + bearishSignals;
+  let bias = 'NEUTRAL';
+  let strength = 0;
+
+  if (totalSignals > 0) {
+    const bullishRatio = bullishSignals / totalSignals;
+    if (bullishRatio >= 0.7) {
+      bias = 'BULLISH';
+      strength = Math.min(100, Math.round(bullishRatio * 100));
+    } else if (bullishRatio <= 0.3) {
+      bias = 'BEARISH';
+      strength = Math.min(100, Math.round((1 - bullishRatio) * 100));
+    } else {
+      bias = 'NEUTRAL';
+      strength = 50;
+    }
+  }
+
+  return {
+    bias,
+    strength,
+    bullishCount: bullishSignals,
+    bearishCount: bearishSignals,
+    signals,
+  };
+};
+
+/**
  * Compute all indicators from time series bars
  */
 export const computeIndicators = (bars, currentPrice) => {
@@ -541,7 +635,8 @@ export const computeIndicators = (bars, currentPrice) => {
   const maResult = calculateMovingAverages(bars, currentPrice);
   const returns = calculateReturns(bars, currentPrice);
 
-  return {
+  // Build base indicators object
+  const indicators = {
     rsi14: rsiResult.rsi,
     macd: macdResult.macd,
     macdSignal: macdResult.signal,
@@ -569,6 +664,14 @@ export const computeIndicators = (bars, currentPrice) => {
       macdResult.lowConfidence ||
       atrResult.lowConfidence ||
       maResult.lowConfidence,
+  };
+
+  // Calculate signal summary based on all indicators
+  const signalSummary = calculateSignalSummary(indicators);
+
+  return {
+    ...indicators,
+    signalSummary,
   };
 };
 
@@ -636,6 +739,8 @@ export const buildStats = async (symbol) => {
       return6M: indicators.return6M,
       returnYTD: indicators.returnYTD,
       return1Y: indicators.return1Y,
+      // Signal Summary
+      signalSummary: indicators.signalSummary,
       lowConfidence: indicators.lowConfidence,
       timestamp: Date.now(),
     };
