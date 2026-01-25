@@ -477,6 +477,80 @@ const StatsTile = ({ symbol }) => {
         </div>
       </div>
 
+      {/* Pivot Points & Support/Resistance */}
+      {stats.pivotPoints && stats.pivotPoints.pivot && (
+        <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
+          <div className="text-gray-400 text-xs font-bold mb-3">PIVOT POINTS & KEY LEVELS</div>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Pivot Levels */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-red-400">R2</span>
+                <span className="text-white font-mono">
+                  ${formatNumber(stats.pivotPoints.r2, 2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-red-300">R1</span>
+                <span className="text-white font-mono">
+                  ${formatNumber(stats.pivotPoints.r1, 2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs bg-bloomberg-secondary/30 p-1 rounded">
+                <span className="text-bloomberg-orange font-bold">PIVOT</span>
+                <span className="text-bloomberg-orange font-mono font-bold">
+                  ${formatNumber(stats.pivotPoints.pivot, 2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-green-300">S1</span>
+                <span className="text-white font-mono">
+                  ${formatNumber(stats.pivotPoints.s1, 2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-green-400">S2</span>
+                <span className="text-white font-mono">
+                  ${formatNumber(stats.pivotPoints.s2, 2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Nearest Levels & Recent Range */}
+            <div className="space-y-3">
+              {stats.pivotPoints.nearestResistance && (
+                <div className="bg-red-900/20 border border-red-800 rounded p-2">
+                  <div className="text-red-400 text-xs">Nearest Resistance</div>
+                  <div className="text-white font-mono">
+                    ${formatNumber(stats.pivotPoints.nearestResistance.value, 2)}
+                    <span className="text-red-400 text-xs ml-1">
+                      ({stats.pivotPoints.nearestResistance.type})
+                    </span>
+                  </div>
+                </div>
+              )}
+              {stats.pivotPoints.nearestSupport && (
+                <div className="bg-green-900/20 border border-green-800 rounded p-2">
+                  <div className="text-green-400 text-xs">Nearest Support</div>
+                  <div className="text-white font-mono">
+                    ${formatNumber(stats.pivotPoints.nearestSupport.value, 2)}
+                    <span className="text-green-400 text-xs ml-1">
+                      ({stats.pivotPoints.nearestSupport.type})
+                    </span>
+                  </div>
+                </div>
+              )}
+              {stats.pivotPoints.recentHigh && stats.pivotPoints.recentLow && (
+                <div className="text-xs text-gray-500">
+                  20-Day Range: ${formatNumber(stats.pivotPoints.recentLow, 2)} - $
+                  {formatNumber(stats.pivotPoints.recentHigh, 2)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer: Technical Indicators */}
       <div className="mt-6 pt-4 border-t border-bloomberg-border-subtle">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -451,6 +451,86 @@ export const calculateReturns = (bars, currentPrice) => {
 };
 
 /**
+ * Calculate Pivot Points and Support/Resistance levels
+ * @param {Array} bars - OHLCV bars (oldest first)
+ * @param {number} currentPrice - Current price
+ * @returns {Object} - Pivot points and S/R levels
+ */
+export const calculatePivotPoints = (bars, currentPrice) => {
+  if (!bars || bars.length < 2) {
+    return {
+      pivot: null,
+      r1: null,
+      r2: null,
+      s1: null,
+      s2: null,
+      recentHigh: null,
+      recentLow: null,
+    };
+  }
+
+  // Use previous day's data for classic pivot calculation
+  const prevBar = bars[bars.length - 2];
+  const high = prevBar.high;
+  const low = prevBar.low;
+  const close = prevBar.close;
+
+  // Classic Pivot Point formula
+  const pivot = (high + low + close) / 3;
+  const r1 = 2 * pivot - low;
+  const r2 = pivot + (high - low);
+  const s1 = 2 * pivot - high;
+  const s2 = pivot - (high - low);
+
+  // Find recent swing high/low (last 20 bars)
+  const recentBars = bars.slice(-20);
+  let recentHigh = -Infinity;
+  let recentLow = Infinity;
+
+  for (const bar of recentBars) {
+    if (bar.high > recentHigh) recentHigh = bar.high;
+    if (bar.low < recentLow) recentLow = bar.low;
+  }
+
+  // Determine nearest support/resistance
+  const levels = [
+    { type: 'R2', value: r2 },
+    { type: 'R1', value: r1 },
+    { type: 'P', value: pivot },
+    { type: 'S1', value: s1 },
+    { type: 'S2', value: s2 },
+  ];
+
+  // Find nearest resistance (above price) and support (below price)
+  let nearestResistance = null;
+  let nearestSupport = null;
+
+  for (const level of levels) {
+    if (
+      level.value > currentPrice &&
+      (!nearestResistance || level.value < nearestResistance.value)
+    ) {
+      nearestResistance = level;
+    }
+    if (level.value < currentPrice && (!nearestSupport || level.value > nearestSupport.value)) {
+      nearestSupport = level;
+    }
+  }
+
+  return {
+    pivot,
+    r1,
+    r2,
+    s1,
+    s2,
+    recentHigh: recentHigh !== -Infinity ? recentHigh : null,
+    recentLow: recentLow !== Infinity ? recentLow : null,
+    nearestResistance,
+    nearestSupport,
+  };
+};
+
+/**
  * Calculate Moving Averages (SMA 20, 50, 200) with trend signals
  * @param {Array} bars - OHLCV bars
  * @param {number} currentPrice - Current price for comparison
@@ -634,6 +714,7 @@ export const computeIndicators = (bars, currentPrice) => {
   const atrResult = calculateATR(bars, 14);
   const maResult = calculateMovingAverages(bars, currentPrice);
   const returns = calculateReturns(bars, currentPrice);
+  const pivots = calculatePivotPoints(bars, currentPrice);
 
   // Build base indicators object
   const indicators = {
@@ -659,6 +740,8 @@ export const computeIndicators = (bars, currentPrice) => {
     return6M: returns.return6M,
     returnYTD: returns.returnYTD,
     return1Y: returns.return1Y,
+    // Pivot Points & S/R
+    pivotPoints: pivots,
     lowConfidence:
       rsiResult.lowConfidence ||
       macdResult.lowConfidence ||
@@ -741,6 +824,8 @@ export const buildStats = async (symbol) => {
       return1Y: indicators.return1Y,
       // Signal Summary
       signalSummary: indicators.signalSummary,
+      // Pivot Points & S/R
+      pivotPoints: indicators.pivotPoints,
       lowConfidence: indicators.lowConfidence,
       timestamp: Date.now(),
     };
