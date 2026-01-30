@@ -638,11 +638,13 @@ const BloombergSimple = () => {
                 <div className="flex items-center space-x-2">
                   <div className={`w-2 h-2 rounded-full ${
                     getStockData(selectedStock).usingCachedData ? 'bg-yellow-500' :
+                    getStockData(selectedStock).isYahooFinance ? 'bg-blue-500' :
                     getStockData(selectedStock).isRealData ? 'bg-bloomberg-status-connected' :
                     getStockData(selectedStock).hasError ? 'bg-red-500' : 'bg-yellow-500'
                   }`}></div>
                   <span className="text-gray-400">
                     {getStockData(selectedStock).usingCachedData ? 'Cached Data (Rate Limit)' :
+                     getStockData(selectedStock).isYahooFinance ? 'Market Closed (Yahoo Finance)' :
                      getStockData(selectedStock).isRealData ? 'Live Data (Twelve Data)' :
                      getStockData(selectedStock).hasError ? 'Error - No Data' : 'Loading...'}
                   </span>
@@ -655,7 +657,7 @@ const BloombergSimple = () => {
               </div>
               {getStockData(selectedStock).usingCachedData && getStockData(selectedStock).rateLimitMessage && (
                 <div className="mt-2 text-xs text-yellow-500">
-                  ⚠ {getStockData(selectedStock).rateLimitMessage}
+                  {getStockData(selectedStock).rateLimitMessage}
                 </div>
               )}
             </div>

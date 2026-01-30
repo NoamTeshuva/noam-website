@@ -29,19 +29,23 @@ export const twelveDataAPI = {
         throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
       }
 
-      // Increment API call counter (only for successful requests)
-      if (response.ok) {
-        incrementAPICallCount(`quote:${symbol}`);
-      }
-
       if (!response.ok) {
         throw new Error(`Quote fetch failed: ${response.status}`);
       }
 
+      // Check data source header BEFORE incrementing counter
+      const dataSource = response.headers.get('x-data-source') || 'Twelve Data';
+      const isYahooFinance = dataSource === 'Yahoo Finance';
+
+      // Increment API call counter (only for Twelve Data requests, not Yahoo Finance)
+      if (!isYahooFinance) {
+        incrementAPICallCount(`quote:${symbol}`);
+      }
+
       const data = await response.json();
 
-      // Check for rate limit error in response body
-      if (handleTDResponse(response, data)) {
+      // Only check rate limit for Twelve Data responses
+      if (!isYahooFinance && handleTDResponse(response, data)) {
         const timeRemaining = getTimeUntilReset();
         throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
       }
@@ -63,10 +67,11 @@ export const twelveDataAPI = {
         low: parseFloat(data.low) || 0,
         lastUpdated: new Date(),
         isRealData: true,
-        source: 'Twelve Data'
+        source: dataSource,
+        isYahooFinance: isYahooFinance
       };
 
-      console.log(`📊 ${data.symbol} volume data:`, {
+      console.log(`📊 ${data.symbol} quote data (${dataSource}):`, {
         raw_volume: data.volume,
         parsed_volume: parsedData.volume,
         raw_avg_volume: data.average_volume,
@@ -102,19 +107,23 @@ export const twelveDataAPI = {
         throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
       }
 
-      // Increment API call counter (only for successful requests)
-      if (response.ok) {
-        incrementAPICallCount(`statistics:${symbol}`);
-      }
-
       if (!response.ok) {
         throw new Error(`Statistics fetch failed: ${response.status}`);
       }
 
+      // Check data source header BEFORE incrementing counter
+      const dataSource = response.headers.get('x-data-source') || 'Twelve Data';
+      const isYahooFinance = dataSource === 'Yahoo Finance';
+
+      // Increment API call counter (only for Twelve Data requests, not Yahoo Finance)
+      if (!isYahooFinance) {
+        incrementAPICallCount(`statistics:${symbol}`);
+      }
+
       const data = await response.json();
 
-      // Check for rate limit error in response body
-      if (handleTDResponse(response, data)) {
+      // Only check rate limit for Twelve Data responses
+      if (!isYahooFinance && handleTDResponse(response, data)) {
         const timeRemaining = getTimeUntilReset();
         throw new Error(`TD_EXHAUSTED:Rate limit exhausted. Resets in ${timeRemaining}`);
       }
@@ -123,10 +132,10 @@ export const twelveDataAPI = {
         throw new Error(data.message || 'Statistics data unavailable');
       }
 
-      // Parse statistics data
+      // Parse statistics data - handle both Twelve Data and Yahoo Finance formats
       const stats = data.statistics || {};
-      const valuations = stats.valuations_metrics || {};
-      const stock = stats.stock_statistics || {};
+      const valuations = stats.valuations_metrics || stats; // Yahoo puts data directly in statistics
+      const stock = stats.stock_statistics || stats;
 
       return {
         symbol: data.symbol,
@@ -139,7 +148,8 @@ export const twelveDataAPI = {
         week52Low: parseFloat(stock['52_week_low']) || null,
         dividendYield: parseFloat(stock.dividend_yield) || null,
         isRealData: true,
-        source: 'Twelve Data Statistics'
+        source: dataSource,
+        isYahooFinance: isYahooFinance
       };
     } catch (error) {
       console.error('Twelve Data statistics error:', error);

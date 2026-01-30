@@ -1,0 +1,249 @@
+CHANGELOG - Financial Market Terminal
+=====================================
+
+2025-01-30 - Yahoo Finance Integration for Market-Closed Hours
+--------------------------------------------------------------
+
+ADDED:
+
+* Yahoo Finance API fallback (workers/twelvedata.js)
+  - Routes requests to Yahoo Finance when US market is closed
+  - Transforms Yahoo data to match Twelve Data format
+  - Separate cache with 1-hour TTL (data won't change when closed)
+  - Adds x-data-source header for frontend detection
+  - No API key required (uses unofficial but stable API)
+
+* Data source detection (src/utils/api.js)
+  - Extracts x-data-source header from responses
+  - Only increments API counter for Twelve Data requests
+  - Passes isYahooFinance flag to frontend
+
+* Visual data source indicator (src/pages/BloombergSimple.jsx)
+  - Blue dot + "Market Closed (Yahoo Finance)" when using Yahoo
+  - Green dot + "Live Data (Twelve Data)" when market is open
+  - Yellow dot for cached data, Red dot for errors
+
+BENEFITS:
+
+* ~50% reduction in Twelve Data API calls (~580/day vs ~1,164/day)
+* Preserves API quota for market hours when data actually changes
+* Same data format regardless of source (transparent to user)
+* All statistics available: P/E, EPS, beta, 52-week high/low, etc.
+
+FILES MODIFIED:
+
+* workers/twelvedata.js - Yahoo Finance handler, routing logic, transform functions
+* src/utils/api.js - Data source header extraction, conditional API counting
+* src/hooks/useSmartPolling.js - Pass through isYahooFinance flag
+* src/pages/BloombergSimple.jsx - Data source indicator colors/text
+
+--------------------------------------
+
+2025-01-25 - Server-Side Authentication Security
+------------------------------------------------
+
+SECURITY:
+
+* Replaced hardcoded credentials with Cloudflare Worker JWT auth
+  - Added /api/auth/login endpoint with SHA-256 password hashing
+  - Added /api/auth/verify endpoint for token validation
+  - Rate limiting: 5 login attempts per minute per IP
+  - JWT tokens expire after 24 hours
+
+* Token-based sessions
+  - JWT stored in sessionStorage (not localStorage for security)
+  - Token verified on page load and every 5 minutes
+  - Auto-logout on token expiration
+  - Logout button added to terminal header
+
+CHANGED:
+
+* Login page (src/pages/Login.jsx)
+  - Calls Worker auth endpoint instead of client-side check
+  - Shows loading state during authentication
+  - Displays rate limit messages
+
+* App authentication (src/App.js)
+  - Added AuthContext with logout function
+  - Token verification on mount
+  - Periodic token expiration check
+
+ENVIRONMENT VARIABLES (Cloudflare Worker):
+* JWT_SECRET - Secret key for JWT signing
+* AUTH_USERNAME - Authorized username
+* AUTH_PASSWORD_HASH - Password hash (salt:hash format)
+
+FILES MODIFIED:
+* workers/twelvedata.js - Auth endpoints, JWT, rate limiting
+* src/pages/Login.jsx - API-based authentication
+* src/App.js - Token validation, logout, AuthContext
+* src/pages/BloombergSimple.jsx - Logout button
+
+--------------------------------------
+
+2025-01-25 - Client-Side Caching & Offline Support
+--------------------------------------------------
+
+ADDED:
+
+* Cache Manager (src/services/cacheManager.js)
+  - Centralized localStorage-based caching for quotes and statistics
+  - Market-hours-aware TTLs (shorter during trading, longer when closed)
+  - Stale-while-revalidate pattern for instant loads
+  - Cache statistics and debugging utilities
+  - TTL Config: Quotes 1min/1hr, Stats 1hr/24hr, Peers 24hr
+
+* Market Hours Utility (src/utils/marketHours.js)
+  - Shared market hours checking (NYSE 9:30 AM - 4 PM ET)
+  - Replaces duplicate implementations across codebase
+  - Used by cache manager, polling, and worker
+
+* Cached API Layer (src/utils/api.js)
+  - cachedTwelveDataAPI wrapper with cache-first strategy
+  - Automatic localStorage persistence
+  - Returns _cached, _stale, _offline flags in responses
+  - Graceful fallback to stale cache on network errors
+
+CHANGED:
+
+* Smart Polling (src/hooks/useSmartPolling.js)
+  - Loads cached data instantly on mount (no loading spinner if cached)
+  - Shows cached data while refreshing in background
+  - Skips API call if cache is fresh
+  - Offline support - returns cached data when network unavailable
+  - Force refresh option to bypass cache
+
+* Edge Caching (workers/twelvedata.js)
+  - Market-hours-aware dynamic TTLs
+  - 60s during market hours, 1hr+ when closed
+  - Reduces API waste outside trading hours
+
+BENEFITS:
+
+* Instant page loads from cache (no waiting for API)
+* Offline mode - app works without network
+* 60-70% reduction in API calls (~100-150/day vs ~300-400)
+* Better rate limit resilience
+
+FILES ADDED:
+* src/services/cacheManager.js
+* src/utils/marketHours.js
+
+FILES MODIFIED:
+* src/utils/api.js - Added cachedTwelveDataAPI wrapper
+* src/hooks/useSmartPolling.js - Cache-first data loading
+* workers/twelvedata.js - Dynamic TTLs
+
+--------------------------------------
+
+2025-01-25 - Mobile-Responsive UI Overhaul
+------------------------------------------
+
+CHANGED:
+
+* Header (BloombergSimple.jsx)
+  - Added hamburger menu for mobile with dropdown containing all actions
+  - Desktop buttons hidden on screens < 768px (md breakpoint)
+  - Mobile quick actions: Watchlist and Refresh visible, rest in menu
+  - Logo shows "TERMINAL" on mobile, full name on larger screens
+  - Responsive padding (px-2 sm:px-4, py-2 sm:py-3)
+
+* Watchlist Sidebar (WatchlistSidebar.jsx, WatchlistSidebar.styles.js)
+  - Full-width on mobile (w-full sm:w-80)
+  - Overlay shows on screens < 768px
+  - Larger touch targets for buttons (min 44px)
+  - Search input taller on mobile (py-3 sm:py-2)
+
+* Stock Grid & Cards (BloombergSimple.jsx)
+  - Responsive columns (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3)
+  - Reduced gaps on mobile (gap-3 sm:gap-4)
+  - Smaller card min-height on mobile (min-h-[140px] sm:min-h-[160px])
+  - Reduced padding on cards (p-3 sm:p-4)
+
+* Detail Panels (BloombergSimple.jsx)
+  - Header stacks vertically on mobile (flex-col sm:flex-row)
+  - Responsive grid for metrics (sm:grid-cols-2 lg:grid-cols-3)
+  - Tabs horizontally scrollable on mobile
+  - Data source indicator stacks on mobile
+
+* Peers Panel (PeersPanel.jsx)
+  - Header stacks vertically on mobile
+  - Optimized row layout for smaller screens
+  - Volume info hidden on mobile to save space
+  - Trend icons hidden on mobile (color shows direction)
+
+* Login Page (Login.jsx)
+  - Larger input fields on mobile (py-3 sm:py-2)
+  - Responsive padding (p-6 sm:p-8)
+  - Smaller title on mobile (text-xl sm:text-2xl)
+
+* Status Indicator
+  - Compact version on mobile ("✓ Online" vs full text)
+  - Smaller positioning (bottom-2 right-2 sm:bottom-4 sm:right-4)
+
+FILES MODIFIED:
+
+* src/pages/BloombergSimple.jsx - Mobile header, grids, detail panels
+* src/components/WatchlistSidebar.jsx - Toggle button positioning
+* src/components/WatchlistSidebar.styles.js - Touch targets, full-width mobile
+* src/components/PeersPanel.jsx - Responsive layout
+* src/pages/Login.jsx - Touch-friendly inputs
+
+--------------------------------------
+
+2025-01-25 - Analysis Page Enhancement
+--------------------------------------
+
+ADDED:
+
+* Moving Averages (SMA 20, 50, 200) with trend signals
+  - Golden Cross / Death Cross detection
+  - Price position relative to each MA (% above/below)
+  - Trend determination: STRONG_BULLISH, BULLISH, NEUTRAL, BEARISH, STRONG_BEARISH
+
+* Historical Performance Returns Grid
+  - 1D, 5D, 1M, 3M, 6M, YTD, 1Y returns
+  - Color-coded (green positive, red negative)
+
+* Signal Summary / Overall Bias Indicator
+  - BULLISH / BEARISH / NEUTRAL bias based on indicator confluence
+  - Strength percentage
+  - Individual signal breakdown (RSI, MACD, MA Trend, SMA200)
+
+* Support/Resistance & Pivot Points
+  - Classic pivot points: P, R1, R2, S1, S2
+  - Nearest support and resistance detection
+  - 20-day high/low range
+
+* Stochastic Oscillator
+  - %K (14-period) and %D (3-period SMA)
+  - Overbought (>80) / Oversold (<20) labels
+
+CHANGED:
+
+* Complete layout redesign for Bloomberg-style data density
+  - Reduced padding (p-6 to p-3)
+  - Smaller fonts (base text-xs)
+  - Combined signal summary with price/volume row
+  - Compact performance returns in single row
+  - Inline SMAs with trend indicator
+  - 2x4 technical indicators grid
+  - Horizontal pivot points display
+
+FIXED:
+
+* White screen crash when bars array is empty/null in calculateMovingAverages()
+
+FILES MODIFIED:
+
+* src/services/tdStats.js - Added all indicator calculation functions
+* src/components/StatsTile.jsx - Complete UI redesign
+
+COMMITS:
+
+6e0238d - Add technical analysis enhancements: SMAs and performance returns
+387c011 - Fix crash when bars array is empty in calculateMovingAverages
+fc63b33 - Add signal summary with overall bias indicator
+c9bffdd - Add pivot points and support/resistance levels
+c98d0ac - Add Stochastic Oscillator indicator
+1a8cd61 - Redesign analysis layout for Bloomberg-style data density

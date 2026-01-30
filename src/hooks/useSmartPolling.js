@@ -113,7 +113,8 @@ export const useSmartPolling = (symbols) => {
           volume: quote.volume,
           timestamp: Date.now(),
           isRealData: true,
-          source: quote._cached ? 'Twelve Data (Cached)' : 'Twelve Data',
+          isYahooFinance: quote.isYahooFinance || false,
+          source: quote.source || (quote._cached ? 'Twelve Data (Cached)' : 'Twelve Data'),
           _cached: quote._cached || false,
           _stale: quote._stale || false,
           _offline: quote._offline || false,
@@ -251,6 +252,7 @@ export const useSmartPolling = (symbols) => {
 
         // Add data source indicators
         isRealData: quote?.isRealData || false,
+        isYahooFinance: quote?.isYahooFinance || false,
         dataSource: quote?.source || 'No Data',
 
         // Add cache metadata

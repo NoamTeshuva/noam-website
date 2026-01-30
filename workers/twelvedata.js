@@ -127,7 +127,17 @@ export default {
       return handleFinnhubRequest(pathname, searchParams, env, ctx);
     }
 
-    // Map /api/* -> Twelve Data endpoints
+    // Check if we should use Yahoo Finance (market closed)
+    // Only for quote and statistics endpoints
+    if (pathname === "/api/quote" || pathname === "/api/statistics") {
+      const isMarketOpen = checkMarketHours();
+
+      if (!isMarketOpen) {
+        return handleYahooFinanceRequest(pathname, searchParams, env, ctx);
+      }
+    }
+
+    // Map /api/* -> Twelve Data endpoints (market is open)
     return handleTwelveDataRequest(pathname, searchParams, env, ctx);
   }
 };
@@ -532,4 +542,209 @@ async function handleTwelveDataRequest(pathname, searchParams, env, ctx) {
   }
 
   return resp;
+}
+
+/**
+ * Handle Yahoo Finance API requests (used when market is closed)
+ * Returns data in Twelve Data compatible format
+ */
+async function handleYahooFinanceRequest(pathname, searchParams, env, ctx) {
+  const symbol = searchParams.get("symbol");
+
+  if (!symbol) {
+    return new Response(JSON.stringify({ error: "Missing ?symbol parameter" }), {
+      status: 400,
+      headers: { "content-type": "application/json", ...CORS_HEADERS }
+    });
+  }
+
+  // Build Yahoo Finance API URL
+  const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+
+  // Cache key specific to Yahoo Finance (separate from Twelve Data cache)
+  const cache = caches.default;
+  const cacheKey = new Request(`https://yahoo-cache/${symbol}${pathname}`, {
+    headers: { Accept: "application/json" }
+  });
+
+  // TTL for market closed: 1 hour fresh, 2 hours stale-while-revalidate
+  const ttl = { maxAge: 3600, swr: 7200 };
+
+  // Try to get from cache
+  let resp = await cache.match(cacheKey);
+
+  if (!resp) {
+    // Cache miss - fetch from Yahoo Finance
+    try {
+      const upstream = await fetch(yahooUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json"
+        },
+        cf: { cacheTtl: 0, cacheEverything: false }
+      });
+
+      if (!upstream.ok) {
+        console.error(`Yahoo Finance error ${upstream.status} for ${symbol}`);
+        return new Response(JSON.stringify({
+          error: `Yahoo Finance error ${upstream.status}`,
+          status: upstream.status,
+          fallbackToTD: true
+        }), {
+          status: upstream.status,
+          headers: { "content-type": "application/json", ...CORS_HEADERS }
+        });
+      }
+
+      const yahooData = await upstream.json();
+      const quote = yahooData?.quoteResponse?.result?.[0];
+
+      if (!quote) {
+        return new Response(JSON.stringify({
+          error: "Symbol not found on Yahoo Finance",
+          fallbackToTD: true
+        }), {
+          status: 404,
+          headers: { "content-type": "application/json", ...CORS_HEADERS }
+        });
+      }
+
+      // Transform Yahoo Finance data to Twelve Data format based on endpoint
+      let transformedData;
+
+      if (pathname === "/api/quote") {
+        transformedData = transformYahooToQuote(quote);
+      } else if (pathname === "/api/statistics") {
+        transformedData = transformYahooToStatistics(quote);
+      }
+
+      const responseText = JSON.stringify(transformedData);
+
+      // Create cacheable response
+      resp = new Response(responseText, {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": `public, max-age=${ttl.maxAge}, stale-while-revalidate=${ttl.swr}`,
+          ...CORS_HEADERS,
+          "x-cache": "MISS",
+          "x-data-source": "Yahoo Finance",
+          "x-market-open": "false",
+          "x-cache-ttl": String(ttl.maxAge)
+        }
+      });
+
+      // Store in edge cache
+      ctx.waitUntil(cache.put(cacheKey, resp.clone()));
+
+      console.log(`📈 Yahoo Finance cache MISS for ${symbol}${pathname} (TTL: ${ttl.maxAge}s, market: closed)`);
+    } catch (error) {
+      console.error(`Yahoo Finance fetch error for ${symbol}:`, error);
+      return new Response(JSON.stringify({
+        error: "Failed to fetch from Yahoo Finance",
+        fallbackToTD: true
+      }), {
+        status: 500,
+        headers: { "content-type": "application/json", ...CORS_HEADERS }
+      });
+    }
+  } else {
+    // Cache hit - add headers
+    const headers = new Headers(resp.headers);
+    headers.set("x-cache", "HIT");
+    headers.set("x-data-source", "Yahoo Finance");
+    headers.set("x-market-open", "false");
+    resp = new Response(resp.body, {
+      status: resp.status,
+      headers: headers
+    });
+  }
+
+  return resp;
+}
+
+/**
+ * Transform Yahoo Finance quote to Twelve Data quote format
+ */
+function transformYahooToQuote(quote) {
+  return {
+    symbol: quote.symbol,
+    name: quote.shortName || quote.longName,
+    exchange: quote.exchange,
+    currency: quote.currency,
+    datetime: new Date().toISOString(),
+    timestamp: Math.floor(Date.now() / 1000),
+    open: quote.regularMarketOpen?.toString(),
+    high: quote.regularMarketDayHigh?.toString(),
+    low: quote.regularMarketDayLow?.toString(),
+    close: quote.regularMarketPrice?.toString(),
+    previous_close: quote.regularMarketPreviousClose?.toString(),
+    change: quote.regularMarketChange?.toString(),
+    percent_change: quote.regularMarketChangePercent?.toString(),
+    volume: quote.regularMarketVolume,
+    average_volume: quote.averageDailyVolume10Day || quote.averageDailyVolume3Month,
+    is_market_open: false,
+    // Source indicator for frontend
+    _source: "yahoo"
+  };
+}
+
+/**
+ * Transform Yahoo Finance data to Twelve Data statistics format
+ */
+function transformYahooToStatistics(quote) {
+  return {
+    symbol: quote.symbol,
+    name: quote.shortName || quote.longName,
+    exchange: quote.exchange,
+    currency: quote.currency,
+    statistics: {
+      // Valuation
+      market_capitalization: quote.marketCap,
+      enterprise_value: quote.enterpriseValue,
+      trailing_pe: quote.trailingPE,
+      forward_pe: quote.forwardPE,
+      peg_ratio: quote.pegRatio,
+      price_to_sales_ttm: quote.priceToSalesTrailing12Months,
+      price_to_book: quote.priceToBook,
+      enterprise_to_revenue: quote.enterpriseToRevenue,
+      enterprise_to_ebitda: quote.enterpriseToEbitda,
+
+      // Financial metrics
+      profit_margin: quote.profitMargins,
+      operating_margin: quote.operatingMargins,
+      return_on_assets: quote.returnOnAssets,
+      return_on_equity: quote.returnOnEquity,
+      revenue: quote.totalRevenue,
+      revenue_per_share: quote.revenuePerShare,
+      quarterly_revenue_growth: quote.revenueGrowth,
+      gross_profit: quote.grossProfits,
+      ebitda: quote.ebitda,
+      net_income: quote.netIncomeToCommon,
+      diluted_eps_ttm: quote.epsTrailingTwelveMonths,
+      quarterly_earnings_growth: quote.earningsQuarterlyGrowth,
+
+      // Stock metrics
+      beta: quote.beta,
+      "52_week_high": quote.fiftyTwoWeekHigh,
+      "52_week_low": quote.fiftyTwoWeekLow,
+      "50_day_ma": quote.fiftyDayAverage,
+      "200_day_ma": quote.twoHundredDayAverage,
+      shares_outstanding: quote.sharesOutstanding,
+      shares_float: quote.floatShares,
+      shares_short: quote.sharesShort,
+      short_ratio: quote.shortRatio,
+      short_percent_of_float: quote.shortPercentOfFloat,
+
+      // Dividends
+      dividend_rate: quote.dividendRate,
+      dividend_yield: quote.dividendYield,
+      trailing_annual_dividend_rate: quote.trailingAnnualDividendRate,
+      trailing_annual_dividend_yield: quote.trailingAnnualDividendYield,
+      payout_ratio: quote.payoutRatio,
+      ex_dividend_date: quote.exDividendDate
+    },
+    // Source indicator for frontend
+    _source: "yahoo"
+  };
 }
