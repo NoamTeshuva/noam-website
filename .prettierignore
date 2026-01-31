@@ -12,4 +12,4 @@ package-lock.json
 .wrangler/
 
 # Claude Code logs
-.claude/session-changes*.log
+.claude/session-changes*.txt

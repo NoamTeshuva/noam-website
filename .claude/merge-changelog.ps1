@@ -1,7 +1,7 @@
 # Merge session changes into CHANGELOG.md
 # Run this at the end of a Claude session to update the changelog
 
-$sessionLogPath = "$PSScriptRoot\session-changes.log"
+$sessionLogPath = "$PSScriptRoot\session-changes.txt"
 $changelogPath = "$PSScriptRoot\..\CHANGELOG.md"
 
 if (-not (Test-Path $sessionLogPath)) {
@@ -28,7 +28,7 @@ $updatedChangelog = $changelog -replace [regex]::Escape($insertPoint), $newSecti
 $updatedChangelog | Out-File -FilePath $changelogPath -Encoding UTF8 -NoNewline
 
 # Archive the session log
-$archiveName = "session-changes-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+$archiveName = "session-changes-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
 Move-Item $sessionLogPath "$PSScriptRoot\$archiveName"
 
 Write-Host "Changelog updated! Session log archived as $archiveName"

@@ -1,22 +1,37 @@
 # Mobile UI Responsiveness Checker for Tailwind CSS projects
-# Analyzes JSX files for potential mobile issues
+# Receives tool input as JSON from stdin
 
-param(
-    [string]$FilePath
-)
+param()
+
+$input = [Console]::In.ReadToEnd()
+
+try {
+    $json = $input | ConvertFrom-Json
+    $FilePath = $json.tool_input.file_path
+
+    if (-not $FilePath) {
+        exit 0
+    }
+
+    # Only check pages and components
+    if ($FilePath -notmatch '[\\/]src[\\/](pages|components)[\\/].*\.jsx$') {
+        exit 0
+    }
+} catch {
+    exit 0
+}
 
 $issues = @()
 $warnings = @()
 
 if (-not (Test-Path $FilePath)) {
-    Write-Host "File not found: $FilePath"
     exit 0
 }
 
 $content = Get-Content $FilePath -Raw
 $fileName = Split-Path $FilePath -Leaf
 
-# Skip if file is too small (likely not a UI component)
+# Skip if file is too small
 if ($content.Length -lt 100) {
     exit 0
 }
@@ -36,13 +51,13 @@ if ($inlinePixels.Count -gt 0) {
 # Check 3: Grid without responsive columns
 $gridNoResponsive = [regex]::Matches($content, 'grid-cols-[3-9](?!\s|.*[sm|md|lg]:grid-cols)')
 if ($gridNoResponsive.Count -gt 0) {
-    $warnings += "Grid with 3+ columns without responsive variant - consider adding sm:grid-cols-1 or md:grid-cols-*"
+    $warnings += "Grid with 3+ columns without responsive variant - consider adding sm:grid-cols-1"
 }
 
 # Check 4: Flex row without wrap or responsive stack
 $flexNoWrap = [regex]::Matches($content, 'flex\s+(?:flex-row\s+)?(?!.*flex-wrap)(?!.*flex-col).*gap-')
 if ($flexNoWrap.Count -gt 0) {
-    $warnings += "Flex container without wrap - items may overflow on mobile. Consider flex-wrap or md:flex-row flex-col"
+    $warnings += "Flex container without wrap - consider flex-wrap or md:flex-row flex-col"
 }
 
 # Check 5: Text sizes that might be too large on mobile
@@ -51,31 +66,25 @@ if ($largeText.Count -gt 0) {
     $warnings += "Large text sizes without responsive variants: $($largeText.Value -join ', ')"
 }
 
-# Check 6: Hidden on mobile patterns (good practice check)
-$hasResponsiveHide = $content -match '(hidden\s+md:block|md:hidden|sm:hidden|lg:hidden)'
-$hasMobileNav = $content -match '(mobile|hamburger|menu-toggle|nav.*mobile)'
-
-# Check 7: Horizontal padding/margin that might cause overflow
+# Check 6: Horizontal padding/margin that might cause overflow
 $largePadding = [regex]::Matches($content, '\b[pm]x-(\d{2,}|\[\d{3,}px\])\b(?!\s+[sm|md|lg|xl]:)')
 if ($largePadding.Count -gt 0) {
     $warnings += "Large horizontal padding/margin without responsive variant"
 }
 
-# Check 8: Tables without overflow handling
+# Check 7: Tables without overflow handling
 if ($content -match '<table' -and $content -notmatch 'overflow-x-auto|overflow-auto|overflow-scroll') {
     $warnings += "Table without overflow wrapper - may cause horizontal scroll on mobile"
 }
 
 # Output results
-Write-Host ""
-Write-Host "=== Mobile UI Check: $fileName ===" -ForegroundColor Cyan
+if ($issues.Count -gt 0 -or $warnings.Count -gt 0) {
+    Write-Host ""
+    Write-Host "=== Mobile UI Check: $fileName ===" -ForegroundColor Cyan
 
-if ($issues.Count -eq 0 -and $warnings.Count -eq 0) {
-    Write-Host "[OK] No obvious mobile issues detected" -ForegroundColor Green
-} else {
     if ($issues.Count -gt 0) {
         Write-Host ""
-        Write-Host "ISSUES (should fix):" -ForegroundColor Red
+        Write-Host "ISSUES:" -ForegroundColor Red
         foreach ($issue in $issues) {
             Write-Host "  - $issue" -ForegroundColor Red
         }
@@ -83,7 +92,7 @@ if ($issues.Count -eq 0 -and $warnings.Count -eq 0) {
 
     if ($warnings.Count -gt 0) {
         Write-Host ""
-        Write-Host "WARNINGS (review recommended):" -ForegroundColor Yellow
+        Write-Host "WARNINGS:" -ForegroundColor Yellow
         foreach ($warning in $warnings) {
             Write-Host "  - $warning" -ForegroundColor Yellow
         }
@@ -91,9 +100,7 @@ if ($issues.Count -eq 0 -and $warnings.Count -eq 0) {
 
     Write-Host ""
     Write-Host "TIP: Use responsive prefixes (sm:, md:, lg:) for mobile-friendly layouts" -ForegroundColor Gray
+    Write-Host ""
 }
 
-Write-Host ""
-
-# Don't fail the hook, just inform
 exit 0

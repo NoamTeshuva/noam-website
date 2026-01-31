@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR\\.claude\\run-prettier.ps1\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR\\.claude\\run-eslint.ps1\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR\\.claude\\check-mobile-ui.ps1\"",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR\\.claude\\log-change.ps1\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -Command \"$input = [Console]::In.ReadToEnd(); $json = $input | ConvertFrom-Json; $cmd = $json.tool_input.command; if ($cmd -match 'rm -rf|--force|DROP TABLE|DELETE FROM|format c:') { Write-Host '[BLOCKED] Destructive command'; exit 1 }\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,25 +1,43 @@
-# Claude Code Changelog Logger
-# This script logs file changes made during Claude sessions
+# Log file changes for changelog tracking
+# Receives tool input as JSON from stdin
 
-param(
-    [string]$FilePath,
-    [string]$Tool
-)
+param()
 
-$changelogPath = "$PSScriptRoot\..\CHANGELOG.md"
-$sessionLogPath = "$PSScriptRoot\session-changes.log"
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-$relativePath = $FilePath -replace [regex]::Escape((Get-Location).Path + "\"), "" -replace "\\", "/"
+$input = [Console]::In.ReadToEnd()
 
-# Create session log if it doesn't exist
-if (-not (Test-Path $sessionLogPath)) {
-    $sessionStart = Get-Date -Format "yyyy-MM-dd HH:mm"
-    "# Claude Session Changes - $sessionStart`n" | Out-File -FilePath $sessionLogPath -Encoding UTF8
+try {
+    $json = $input | ConvertFrom-Json
+    $filePath = $json.tool_input.file_path
+    $toolName = $json.tool_name
+
+    if (-not $filePath) {
+        exit 0
+    }
+
+    # Only log code files
+    if ($filePath -notmatch '\.(js|jsx|json|css)$') {
+        exit 0
+    }
+
+    $sessionLogPath = "$PSScriptRoot\session-changes.txt"
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    # Get relative path
+    $projectDir = Split-Path $PSScriptRoot -Parent
+    $relativePath = $filePath -replace [regex]::Escape($projectDir), "" -replace "^[\\/]", "" -replace "\\", "/"
+
+    # Create session log if it doesn't exist
+    if (-not (Test-Path $sessionLogPath)) {
+        $sessionStart = Get-Date -Format "yyyy-MM-dd HH:mm"
+        "# Claude Session Changes - $sessionStart`n" | Out-File -FilePath $sessionLogPath -Encoding UTF8
+    }
+
+    # Log the change
+    $entry = "- [$timestamp] ($toolName) $relativePath"
+    Add-Content -Path $sessionLogPath -Value $entry -Encoding UTF8
+
+} catch {
+    exit 0
 }
 
-# Log the change
-$entry = "- [$timestamp] ($Tool) $relativePath"
-Add-Content -Path $sessionLogPath -Value $entry -Encoding UTF8
-
-# Output for hook feedback
-Write-Host "Logged: $relativePath"
+exit 0

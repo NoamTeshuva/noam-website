@@ -34,7 +34,9 @@
       "Bash(\"taskkill\" \"/F\" \"/IM\" \"node.exe\")",
       "Bash(wrangler:*)",
       "Bash(npx wrangler:*)",
-      "Bash(npm run build:test:*)"
+      "Bash(npm run build:test:*)",
+      "Bash(powershell -File:*)",
+      "Bash(echo:*)"
     ],
     "deny": []
   }
