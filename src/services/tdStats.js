@@ -8,6 +8,7 @@
 
 import { calculateEMA, calculateWilderSmoothing, calculateSMA } from '../utils/ema';
 import { isTDExhausted, handleTDResponse, getTimeUntilReset } from '../utils/rateLimitManager';
+import { incrementAPICallCount } from '../utils/apiCallCounter';
 
 const WORKER_URL = process.env.REACT_APP_WORKER_URL || '/api';
 
@@ -112,6 +113,12 @@ export const fetchTDQuote = async (symbol) => {
       throw new Error(`Quote fetch failed: ${response.status}`);
     }
 
+    // Count this API call (tdStats was previously invisible to the counter)
+    const dataSource = response.headers.get('x-data-source') || 'Twelve Data';
+    if (dataSource !== 'Yahoo Finance') {
+      incrementAPICallCount(`tdStats:quote:${symbol}`);
+    }
+
     const data = await response.json();
 
     // Check for rate limit error
@@ -204,6 +211,9 @@ export const fetchTDSeries = async (symbol, interval = '1day', outputsize = 200)
     if (!response.ok) {
       throw new Error(`Time series fetch failed: ${response.status}`);
     }
+
+    // Count this API call
+    incrementAPICallCount(`tdStats:series:${symbol}`);
 
     const data = await response.json();
 

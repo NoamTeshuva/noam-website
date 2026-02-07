@@ -318,28 +318,24 @@ export const cachedTwelveDataAPI = {
 
     if (skipCache) {
       const freshData = await twelveDataAPI.getTimeSeries(symbol, interval, outputsize);
-      setInCache(cacheKey, 'timeSeries', freshData);
+      // Wrap array in object so cacheManager spread doesn't break it
+      setInCache(cacheKey, 'timeSeries', { values: freshData });
       return { data: freshData, _cached: false, _stale: false, _offline: false };
     }
 
-    const result = await cacheFirst(cacheKey, 'timeSeries', () =>
-      twelveDataAPI.getTimeSeries(symbol, interval, outputsize)
-    );
+    const result = await cacheFirst(cacheKey, 'timeSeries', async () => {
+      const data = await twelveDataAPI.getTimeSeries(symbol, interval, outputsize);
+      // Wrap array in object so cacheManager spread doesn't break it
+      return { values: data };
+    });
 
-    // Time series returns array, so handle differently
-    if (Array.isArray(result)) {
-      return { data: result, _cached: false, _stale: false, _offline: false };
-    }
-
-    // If result has cache metadata, extract the data array
-    const { _cached, _stale, _offline, _cacheAge, _error, ...data } = result;
     return {
-      data: Array.isArray(data) ? data : (data.data || []),
-      _cached,
-      _stale,
-      _offline,
-      _cacheAge,
-      _error
+      data: result.values || [],
+      _cached: result._cached || false,
+      _stale: result._stale || false,
+      _offline: result._offline || false,
+      _cacheAge: result._cacheAge,
+      _error: result._error
     };
   },
 

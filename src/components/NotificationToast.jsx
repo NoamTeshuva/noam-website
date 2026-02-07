@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import indexedDBService from '../services/indexedDBService';
 
 const NotificationToast = ({ 
   message, 
@@ -166,12 +167,34 @@ export const useToast = () => {
     success: (message, options = {}) => addToast({ message, type: 'success', ...options }),
     warning: (message, options = {}) => addToast({ message, type: 'warning', ...options }),
     error: (message, options = {}) => addToast({ message, type: 'error', ...options }),
-    volumeSpike: (message, options = {}) => addToast({ 
-      message, 
-      type: 'volume_spike', 
-      duration: 8000, // Longer duration for important alerts
-      ...options 
-    })
+    volumeSpike: (message, options = {}) => {
+      // Log alert to IndexedDB
+      const symbol = options.symbol || extractSymbolFromMessage(message);
+      if (symbol) {
+        indexedDBService.saveAlert({
+          symbol,
+          type: 'volume_spike',
+          message,
+          metadata: options.metadata || {}
+        }).catch(error => {
+          console.warn('Failed to save alert to IndexedDB:', error);
+        });
+      }
+
+      return addToast({
+        message,
+        type: 'volume_spike',
+        duration: 8000, // Longer duration for important alerts
+        ...options
+      });
+    }
+  };
+
+  // Helper function to extract symbol from volume spike message
+  const extractSymbolFromMessage = (message) => {
+    // Messages typically start with symbol: "AAPL volume spike..."
+    const match = message.match(/^([A-Z]+)\s+/);
+    return match ? match[1] : null;
   };
 
   return {

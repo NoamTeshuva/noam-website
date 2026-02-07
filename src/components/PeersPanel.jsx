@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getPeers } from '../services/peers';
-import { twelveDataAPI } from '../utils/api';
+import { cachedTwelveDataAPI } from '../utils/api';
 import { formatters } from '../hooks/useSmartPolling';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { getCachedPeerQuotes, savePeerQuotes } from '../services/peerQuotesCache';
@@ -79,7 +79,7 @@ const PeersPanel = ({ symbol }) => {
             }
 
             console.log(`📊 [PeersPanel] Fetching quote for ${peerSymbol}...`);
-            const quoteData = await twelveDataAPI.getQuote(peerSymbol);
+            const quoteData = await cachedTwelveDataAPI.getQuote(peerSymbol);
 
             quotes[peerSymbol] = {
               symbol: peerSymbol,

@@ -6,28 +6,10 @@
  * Storage: localStorage with memory fallback
  */
 
+import { isMarketOpen } from '../utils/marketHours';
+
 const CACHE_KEY = 'peerQuotesCache';
 const CACHE_TTL = 300000; // 5 minutes
-
-/**
- * Check if US market is currently open (NYSE hours)
- * @returns {boolean} - True if market is open
- */
-const isMarketOpen = () => {
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = etTime.getDay(); // 0 = Sunday, 6 = Saturday
-  const hours = etTime.getHours();
-  const minutes = etTime.getMinutes();
-  const totalMinutes = hours * 60 + minutes;
-
-  // Market hours: Monday-Friday, 9:30 AM - 4:00 PM ET
-  const isWeekday = day >= 1 && day <= 5;
-  const marketOpen = 9 * 60 + 30; // 9:30 AM
-  const marketClose = 16 * 60; // 4:00 PM
-
-  return isWeekday && totalMinutes >= marketOpen && totalMinutes < marketClose;
-};
 
 /**
  * Get cached peer quotes for a parent symbol
@@ -183,9 +165,6 @@ export const getPeerQuotesCacheStats = () => {
     return { symbols: 0, totalQuotes: 0, size: 0 };
   }
 };
-
-// Export market hours check for external use
-export { isMarketOpen };
 
 // Expose debug utilities to window
 if (typeof window !== 'undefined') {

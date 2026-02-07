@@ -122,6 +122,11 @@ export default {
       return handleVerifyToken(request, env);
     }
 
+    // Sync endpoints (require authentication)
+    if (pathname.startsWith("/api/sync/")) {
+      return handleSyncRequest(request, pathname, env);
+    }
+
     // Route to Finnhub or Twelve Data
     if (pathname.startsWith("/api/finnhub/")) {
       return handleFinnhubRequest(pathname, searchParams, env, ctx);
@@ -233,6 +238,259 @@ async function handleVerifyToken(request, env) {
     return jsonResponse({ valid: false, error: "Invalid token" }, 401);
   } catch (error) {
     return jsonResponse({ valid: false, error: "Token verification failed" }, 401);
+  }
+}
+
+/**
+ * Handle sync requests (watchlist, preferences, alerts)
+ * Requires JWT authentication
+ */
+async function handleSyncRequest(request, pathname, env) {
+  // Verify JWT token
+  const authHeader = request.headers.get("Authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Unauthorized - No token provided" }, 401);
+  }
+
+  const token = authHeader.substring(7);
+  let payload;
+
+  try {
+    payload = await verifyJWT(token, env.JWT_SECRET);
+    if (!payload) {
+      return jsonResponse({ error: "Unauthorized - Invalid token" }, 401);
+    }
+  } catch (error) {
+    return jsonResponse({ error: "Unauthorized - Token verification failed" }, 401);
+  }
+
+  const username = payload.username;
+
+  // Check if MARKET_TERMINAL_SYNC KV namespace is bound
+  if (!env.MARKET_TERMINAL_SYNC) {
+    return jsonResponse({
+      error: "Sync not configured - KV namespace not bound",
+      hint: "Bind MARKET_TERMINAL_SYNC KV namespace in wrangler.toml"
+    }, 500);
+  }
+
+  // Route to appropriate sync handler
+  if (pathname === "/api/sync/watchlist") {
+    return handleWatchlistSync(request, username, env);
+  }
+
+  if (pathname === "/api/sync/preferences") {
+    return handlePreferencesSync(request, username, env);
+  }
+
+  if (pathname === "/api/sync/alerts") {
+    return handleAlertsSync(request, username, env);
+  }
+
+  if (pathname === "/api/sync/status") {
+    return handleSyncStatus(request, username, env);
+  }
+
+  return jsonResponse({ error: "Unknown sync endpoint" }, 404);
+}
+
+/**
+ * Handle watchlist sync (GET/POST)
+ */
+async function handleWatchlistSync(request, username, env) {
+  const kv = env.MARKET_TERMINAL_SYNC;
+  const key = `user:${username}:watchlist`;
+
+  if (request.method === "GET") {
+    // Download watchlist
+    const data = await kv.get(key, { type: "json" });
+
+    if (!data) {
+      return jsonResponse({
+        exists: false,
+        message: "No watchlist found in cloud"
+      });
+    }
+
+    return jsonResponse({
+      exists: true,
+      data,
+      lastModified: data.timestamp
+    });
+  }
+
+  if (request.method === "POST") {
+    // Upload watchlist
+    try {
+      const body = await request.json();
+      const { symbols } = body;
+
+      if (!Array.isArray(symbols)) {
+        return jsonResponse({ error: "Invalid watchlist format - symbols must be an array" }, 400);
+      }
+
+      const watchlistData = {
+        symbols,
+        timestamp: Date.now(),
+        version: 1,
+        lastModified: new Date().toISOString()
+      };
+
+      await kv.put(key, JSON.stringify(watchlistData));
+
+      return jsonResponse({
+        success: true,
+        message: "Watchlist synced to cloud",
+        timestamp: watchlistData.timestamp
+      });
+    } catch (error) {
+      return jsonResponse({ error: "Failed to parse request body" }, 400);
+    }
+  }
+
+  return jsonResponse({ error: "Method not allowed" }, 405);
+}
+
+/**
+ * Handle preferences sync (GET/POST)
+ */
+async function handlePreferencesSync(request, username, env) {
+  const kv = env.MARKET_TERMINAL_SYNC;
+  const key = `user:${username}:preferences`;
+
+  if (request.method === "GET") {
+    const data = await kv.get(key, { type: "json" });
+
+    if (!data) {
+      return jsonResponse({
+        exists: false,
+        message: "No preferences found in cloud"
+      });
+    }
+
+    return jsonResponse({
+      exists: true,
+      data,
+      lastModified: data.timestamp
+    });
+  }
+
+  if (request.method === "POST") {
+    try {
+      const body = await request.json();
+
+      const preferencesData = {
+        ...body,
+        timestamp: Date.now(),
+        lastModified: new Date().toISOString()
+      };
+
+      await kv.put(key, JSON.stringify(preferencesData));
+
+      return jsonResponse({
+        success: true,
+        message: "Preferences synced to cloud",
+        timestamp: preferencesData.timestamp
+      });
+    } catch (error) {
+      return jsonResponse({ error: "Failed to parse request body" }, 400);
+    }
+  }
+
+  return jsonResponse({ error: "Method not allowed" }, 405);
+}
+
+/**
+ * Handle alerts sync (GET/POST)
+ */
+async function handleAlertsSync(request, username, env) {
+  const kv = env.MARKET_TERMINAL_SYNC;
+  const key = `user:${username}:alerts`;
+
+  if (request.method === "GET") {
+    const data = await kv.get(key, { type: "json" });
+
+    if (!data) {
+      return jsonResponse({
+        exists: false,
+        data: [],
+        message: "No alerts found in cloud"
+      });
+    }
+
+    return jsonResponse({
+      exists: true,
+      data: data.alerts || [],
+      lastModified: data.timestamp
+    });
+  }
+
+  if (request.method === "POST") {
+    try {
+      const body = await request.json();
+      const { alerts } = body;
+
+      if (!Array.isArray(alerts)) {
+        return jsonResponse({ error: "Invalid alerts format - alerts must be an array" }, 400);
+      }
+
+      const alertsData = {
+        alerts,
+        timestamp: Date.now(),
+        lastModified: new Date().toISOString()
+      };
+
+      await kv.put(key, JSON.stringify(alertsData));
+
+      return jsonResponse({
+        success: true,
+        message: "Alerts synced to cloud",
+        count: alerts.length,
+        timestamp: alertsData.timestamp
+      });
+    } catch (error) {
+      return jsonResponse({ error: "Failed to parse request body" }, 400);
+    }
+  }
+
+  return jsonResponse({ error: "Method not allowed" }, 405);
+}
+
+/**
+ * Handle sync status (GET) - returns last sync times for all data types
+ */
+async function handleSyncStatus(request, username, env) {
+  if (request.method !== "GET") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  const kv = env.MARKET_TERMINAL_SYNC;
+
+  try {
+    const [watchlist, preferences, alerts] = await Promise.all([
+      kv.get(`user:${username}:watchlist`, { type: "json" }),
+      kv.get(`user:${username}:preferences`, { type: "json" }),
+      kv.get(`user:${username}:alerts`, { type: "json" })
+    ]);
+
+    return jsonResponse({
+      username,
+      watchlist: watchlist ? {
+        lastModified: watchlist.timestamp,
+        symbolCount: watchlist.symbols?.length || 0
+      } : null,
+      preferences: preferences ? {
+        lastModified: preferences.timestamp
+      } : null,
+      alerts: alerts ? {
+        lastModified: alerts.timestamp,
+        count: alerts.alerts?.length || 0
+      } : null,
+      serverTime: Date.now()
+    });
+  } catch (error) {
+    return jsonResponse({ error: "Failed to fetch sync status" }, 500);
   }
 }
 

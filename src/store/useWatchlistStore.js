@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getCachedPeers, getPeersWithInfo } from '../utils/peerFetcher'
 
-const MAX_WATCHLIST_SYMBOLS = 10;
+const MAX_WATCHLIST_SYMBOLS = 50;
 
 export const useWatchlistStore = create(
   persist(

@@ -4,8 +4,19 @@
  * When TD API returns "run out of API credits", blocks all further requests until midnight ET
  */
 
-// Global exhaustion state
-let TD_EXHAUSTED_UNTIL = null;
+// Global exhaustion state (persisted to localStorage to survive page refreshes)
+const RL_STORAGE_KEY = 'td_exhausted_until';
+let TD_EXHAUSTED_UNTIL = (() => {
+  try {
+    const stored = localStorage.getItem(RL_STORAGE_KEY);
+    if (stored) {
+      const val = parseInt(stored, 10);
+      if (val > Date.now()) return val;
+      localStorage.removeItem(RL_STORAGE_KEY);
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+})();
 
 /**
  * Get midnight ET timestamp for today
@@ -33,6 +44,7 @@ export const isTDExhausted = () => {
   if (now >= TD_EXHAUSTED_UNTIL) {
     // Limit has reset, clear the flag
     TD_EXHAUSTED_UNTIL = null;
+    try { localStorage.removeItem(RL_STORAGE_KEY); } catch (e) { /* ignore */ }
     console.log('✅ [RateLimit] TD API limit has reset at midnight');
     return false;
   }
@@ -45,6 +57,7 @@ export const isTDExhausted = () => {
  */
 export const markTDExhausted = () => {
   TD_EXHAUSTED_UNTIL = getMidnightET();
+  try { localStorage.setItem(RL_STORAGE_KEY, String(TD_EXHAUSTED_UNTIL)); } catch (e) { /* ignore */ }
   const resetTime = new Date(TD_EXHAUSTED_UNTIL).toLocaleTimeString('en-US', {
     timeZone: 'America/New_York',
     hour: '2-digit',
@@ -135,6 +148,7 @@ export const getExhaustionState = () => {
  */
 export const resetExhaustion = () => {
   TD_EXHAUSTED_UNTIL = null;
+  try { localStorage.removeItem(RL_STORAGE_KEY); } catch (e) { /* ignore */ }
   console.log('✅ [RateLimit] Exhaustion flag manually reset');
 };
 

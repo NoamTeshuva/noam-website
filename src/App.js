@@ -4,6 +4,7 @@ import Portfolio from './Portfolio';
 import BloombergWannabe from './pages/BloombergWannabe';
 import BloombergSimple from './pages/BloombergSimple';
 import Login from './pages/Login';
+import Settings from './pages/Settings';
 import { ToastContainer, useToast } from './components/NotificationToast';
 import { useWatchlistStore } from './store/useWatchlistStore';
 import { EventDetector, createVolumeSpikeMessage } from './utils/eventDetector';
@@ -208,6 +209,14 @@ function App() {
               element={
                 isAuthenticated
                   ? <BloombergWannabe />
+                  : <Navigate to="/login" replace />
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                isAuthenticated
+                  ? <Settings />
                   : <Navigate to="/login" replace />
               }
             />

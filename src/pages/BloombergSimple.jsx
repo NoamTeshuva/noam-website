@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle, LogOut, Menu, X } from 'lucide-react';
+import { TrendingUp, Activity, Globe, Search, RefreshCw, TestTube, AlertTriangle, LogOut, Menu, X, WifiOff, Cloud, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useSmartPolling, formatters } from '../hooks/useSmartPolling';
 import WatchlistSidebar from '../components/WatchlistSidebar';
 import PeersPanel from '../components/PeersPanel';
+import PeerAnalysis from '../components/PeerAnalysis';
 import StatsTile from '../components/StatsTile';
 import { useWatchlistStore } from '../store/useWatchlistStore';
 import { useToast } from '../components/NotificationToast';
@@ -10,16 +12,20 @@ import { createVolumeSpikeMessage } from '../utils/eventDetector';
 import { testExhaustion, resetExhaustion, isTDExhausted, getTimeUntilReset } from '../utils/rateLimitManager';
 import { getAPICounterState } from '../utils/apiCallCounter';
 import { useAuth } from '../App';
+import { useOfflineStatus } from '../hooks/useOfflineStatus';
+import { useSync } from '../hooks/useSync';
 
 const BloombergSimple = () => {
   console.log('🏢 BloombergSimple component rendering...');
 
+  const navigate = useNavigate();
   const [selectedStock, setSelectedStock] = useState('AAPL');
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'analysis'
   const [apiCounterState, setApiCounterState] = useState(getAPICounterState());
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [offlineBannerDismissed, setOfflineBannerDismissed] = useState(false);
 
   // Get watchlist symbols from store
   const { symbols: watchedSymbols } = useWatchlistStore();
@@ -29,6 +35,29 @@ const BloombergSimple = () => {
 
   // Auth context for logout
   const auth = useAuth();
+
+  // Offline status detection
+  const offlineStatus = useOfflineStatus();
+
+  // Sync manager
+  const {
+    isSyncing,
+    syncWatchlistToCloud,
+    getTimeSinceSync,
+    hasPendingChanges,
+    syncError
+  } = useSync();
+
+  // Handle sync button click
+  const handleSync = async () => {
+    try {
+      await syncWatchlistToCloud();
+      toast.success('✅ Watchlist synced to cloud', { duration: 3000 });
+    } catch (error) {
+      console.error('Sync failed:', error);
+      toast.error(`❌ Sync failed: ${error.message}`, { duration: 5000 });
+    }
+  };
 
   // Update API counter state every 5 seconds
   useEffect(() => {
@@ -123,7 +152,7 @@ const BloombergSimple = () => {
                 <span className="hidden xs:inline">{error ? 'ERROR' : 'LIVE'}</span>
                 {lastUpdated && (
                   <span className="text-gray-500 hidden md:inline">
-                    {lastUpdated.toLocaleTimeString()}
+                    {new Date(lastUpdated).toLocaleTimeString()}
                   </span>
                 )}
               </div>
@@ -163,6 +192,18 @@ const BloombergSimple = () => {
                 <span>REFRESH</span>
               </button>
               <button
+                onClick={handleSync}
+                className={`flex items-center space-x-1 transition-colors ${
+                  hasPendingChanges ? 'text-bloomberg-orange hover:text-white' : 'hover:text-white'
+                }`}
+                disabled={isSyncing}
+                title={hasPendingChanges ? 'Sync pending - click to sync' : `Last synced: ${getTimeSinceSync('watchlist')}`}
+              >
+                <Cloud className={`h-3 w-3 ${isSyncing ? 'animate-pulse' : ''}`} />
+                <span>SYNC</span>
+                {hasPendingChanges && <span className="text-bloomberg-orange">●</span>}
+              </button>
+              <button
                 onClick={testVolumeSpike}
                 className="flex items-center space-x-1 hover:text-bloomberg-orange transition-colors"
                 title="Test Volume Spike Notification"
@@ -186,8 +227,16 @@ const BloombergSimple = () => {
                 <span className="text-bloomberg-status-connected">●</span>
               </div>
               <button
+                onClick={() => navigate('/settings')}
+                className="flex items-center space-x-1 hover:text-bloomberg-orange transition-colors ml-4"
+                title="Settings"
+              >
+                <Settings className="h-3 w-3" />
+                <span>SETTINGS</span>
+              </button>
+              <button
                 onClick={() => auth?.logout()}
-                className="flex items-center space-x-1 hover:text-bloomberg-status-error transition-colors ml-4"
+                className="flex items-center space-x-1 hover:text-bloomberg-status-error transition-colors"
                 title="Logout"
               >
                 <LogOut className="h-3 w-3" />
@@ -261,6 +310,13 @@ const BloombergSimple = () => {
                   <span className="text-bloomberg-status-connected">●</span>
                 </div>
                 <button
+                  onClick={() => { navigate('/settings'); setIsMobileMenuOpen(false); }}
+                  className="flex items-center space-x-2 py-2 px-2 hover:bg-bloomberg-panel rounded transition-colors"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Settings</span>
+                </button>
+                <button
                   onClick={() => { auth?.logout(); setIsMobileMenuOpen(false); }}
                   className="flex items-center space-x-2 py-2 px-2 hover:bg-bloomberg-panel rounded transition-colors text-bloomberg-status-error"
                 >
@@ -272,6 +328,36 @@ const BloombergSimple = () => {
           )}
         </div>
       </div>
+
+      {/* Offline Banner */}
+      {offlineStatus.isOffline && !offlineBannerDismissed && (
+        <div className="bg-yellow-900/30 border-y border-yellow-700/50">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <WifiOff className="h-5 w-5 text-yellow-500" />
+                <div className="flex flex-col">
+                  <span className="text-yellow-500 text-sm font-semibold">
+                    OFFLINE MODE
+                  </span>
+                  <span className="text-yellow-300/80 text-xs">
+                    {offlineStatus.staleSince
+                      ? `Using cached data from ${offlineStatus.getStaleTime(offlineStatus.staleSince)}`
+                      : 'Network connection unavailable - showing cached data'}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setOfflineBannerDismissed(true)}
+                className="text-yellow-500/60 hover:text-yellow-500 transition-colors"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
@@ -391,7 +477,7 @@ const BloombergSimple = () => {
                         <div className="w-2 h-2 rounded-full bg-bloomberg-metrics-sales mb-1"></div>
                         {data.lastUpdated && (
                           <span className="text-gray-500 text-xs" style={{ fontSize: '8px' }}>
-                            {data.lastUpdated.toLocaleTimeString().slice(0, 5)}
+                            {new Date(data.lastUpdated).toLocaleTimeString().slice(0, 5)}
                           </span>
                         )}
                       </div>
@@ -402,20 +488,38 @@ const BloombergSimple = () => {
                       <div className="text-white font-bold font-mono" style={{ fontSize: '16px' }}>
                         {formatters.price(data.price)}
                       </div>
-                      {data.change !== undefined && (
-                        <div 
-                          className={`text-sm px-2 py-1 rounded-sm inline-block ${
-                            isNeutral 
-                              ? 'text-bloomberg-data-neutral bg-bloomberg-data-neutral/20' 
-                              : isPositive 
-                                ? 'text-white bg-bloomberg-data-positive' 
-                                : 'text-white bg-bloomberg-data-negative'
-                          }`}
-                          style={{ fontSize: '11px' }}
-                        >
-                          {formatters.change(data.change, data.changePercent)}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {data.change !== undefined && (
+                          <div
+                            className={`text-sm px-2 py-1 rounded-sm inline-block ${
+                              isNeutral
+                                ? 'text-bloomberg-data-neutral bg-bloomberg-data-neutral/20'
+                                : isPositive
+                                  ? 'text-white bg-bloomberg-data-positive'
+                                  : 'text-white bg-bloomberg-data-negative'
+                            }`}
+                            style={{ fontSize: '11px' }}
+                          >
+                            {formatters.change(data.change, data.changePercent)}
+                          </div>
+                        )}
+                        {/* Stale/Offline indicator */}
+                        {(data._stale || data._offline || data._cached) && data._cacheAge && (
+                          <div
+                            className={`text-xs px-2 py-1 rounded-sm inline-block ${
+                              data._offline
+                                ? 'text-red-300 bg-red-900/30 border border-red-700/50'
+                                : data._stale
+                                  ? 'text-yellow-300 bg-yellow-900/30 border border-yellow-700/50'
+                                  : 'text-gray-400 bg-gray-800/30 border border-gray-700/50'
+                            }`}
+                            style={{ fontSize: '9px' }}
+                            title={data._offline ? 'Offline - using cached data' : data._stale ? 'Stale data - revalidating' : 'Cached data'}
+                          >
+                            {offlineStatus.formatCacheAge(data._cacheAge)}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Metrics */}
@@ -471,7 +575,16 @@ const BloombergSimple = () => {
                   Overview
                 </span>
                 <span className="text-gray-400 hover:text-white cursor-pointer">News</span>
-                <span className="text-gray-400 hover:text-white cursor-pointer">Chart</span>
+                <span
+                  onClick={() => setActiveTab('peers')}
+                  className={`pb-1 font-bold cursor-pointer transition-colors ${
+                    activeTab === 'peers'
+                      ? 'text-bloomberg-activeTab border-b-2 border-bloomberg-activeTab'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Peers
+                </span>
                 <span
                   onClick={() => setActiveTab('analysis')}
                   className={`pb-1 font-bold cursor-pointer transition-colors ${
@@ -651,7 +764,7 @@ const BloombergSimple = () => {
                 </div>
                 <span className="text-gray-500">
                   {getStockData(selectedStock).lastUpdated ?
-                    `Updated: ${getStockData(selectedStock).lastUpdated.toLocaleTimeString()}` :
+                    `Updated: ${new Date(getStockData(selectedStock).lastUpdated).toLocaleTimeString()}` :
                     '---'}
                 </span>
               </div>
@@ -668,6 +781,13 @@ const BloombergSimple = () => {
         {activeTab === 'analysis' && (
           <div>
             <StatsTile symbol={selectedStock} />
+          </div>
+        )}
+
+        {/* Peers Tab Content */}
+        {activeTab === 'peers' && (
+          <div>
+            <PeerAnalysis symbol={selectedStock} />
           </div>
         )}
       </div>

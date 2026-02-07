@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { twelveDataAPI, cachedTwelveDataAPI } from '../utils/api';
 import { isMarketOpen as checkMarketStatus } from '../utils/marketHours';
 import { getCacheStats } from '../services/cacheManager';
+import indexedDBService from '../services/indexedDBService';
 
 export const useSmartPolling = (symbols) => {
   const [stockData, setStockData] = useState({});
@@ -14,6 +15,7 @@ export const useSmartPolling = (symbols) => {
   const fundamentalsFetchedRef = useRef(new Set()); // Track which symbols have fundamentals
   const initialLoadCompleteRef = useRef(false);
   const pendingFetchesRef = useRef(0);
+  const lastSnapshotTimeRef = useRef({}); // Track last snapshot time per symbol (for batching)
 
   // Check if US market is currently open (NYSE hours)
   const checkMarketHours = () => {
@@ -202,6 +204,31 @@ export const useSmartPolling = (symbols) => {
     return null;
   };
 
+  // Save quote snapshot to IndexedDB (batched every 5 minutes)
+  const saveQuoteSnapshot = async (symbol, quoteData) => {
+    // Only save if market is open (avoid redundant snapshots when closed)
+    if (!isMarketOpen) return;
+
+    // Batch saves: only save every 5 minutes per symbol
+    const now = Date.now();
+    const lastSnapshotTime = lastSnapshotTimeRef.current[symbol] || 0;
+    const timeSinceLastSnapshot = now - lastSnapshotTime;
+    const SNAPSHOT_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+    if (timeSinceLastSnapshot < SNAPSHOT_INTERVAL) {
+      // Too soon, skip this snapshot
+      return;
+    }
+
+    try {
+      await indexedDBService.saveQuoteSnapshot(symbol, quoteData);
+      lastSnapshotTimeRef.current[symbol] = now;
+    } catch (error) {
+      // Don't fail the whole operation if IndexedDB save fails
+      console.warn(`Failed to save snapshot for ${symbol}:`, error);
+    }
+  };
+
   // Smart data fetching strategy
   const fetchStockData = async (symbol, fetchFundamentalsData = false, forceRefresh = false) => {
     pendingFetchesRef.current++;
@@ -270,6 +297,12 @@ export const useSmartPolling = (symbols) => {
 
       setLastUpdated(new Date());
       setError(null);
+
+      // Save quote snapshot to IndexedDB (batched, only if market open)
+      if (quote && !quote._cached && !quote._stale) {
+        // Only save fresh data (not cached/stale)
+        saveQuoteSnapshot(symbol, quote);
+      }
 
     } catch (error) {
       console.error(`❌ Error fetching ${symbol}:`, error);
@@ -439,8 +472,8 @@ export const useSmartPolling = (symbols) => {
     refreshSymbol: (symbol) => fetchStockData(symbol),
     refreshAll: () => symbols?.forEach(symbol => fetchStockData(symbol)),
     // Force refresh bypasses cache completely
-    forceRefreshSymbol: (symbol) => fetchStockData(symbol, true),
-    forceRefreshAll: () => symbols?.forEach(symbol => fetchStockData(symbol, true)),
+    forceRefreshSymbol: (symbol) => fetchStockData(symbol, true, true),
+    forceRefreshAll: () => symbols?.forEach(symbol => fetchStockData(symbol, true, true)),
     // Cache statistics for debugging
     getCacheStats
   };
